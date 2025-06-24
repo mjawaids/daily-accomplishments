@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Clock, CheckCircle2, Edit3, Trash2, Calendar, LogOut, User, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { offlineManager } from '../lib/offline';
+import { OfflineIndicator } from './OfflineIndicator';
 import type { Database } from '../lib/supabase';
 
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
@@ -39,35 +41,90 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Load accomplishments from Supabase with pagination
+  // Initialize offline manager
+  useEffect(() => {
+    offlineManager.init();
+  }, []);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Sync when coming back online
+      offlineManager.syncPendingOperations();
+      // Reload data from server
+      loadAccomplishments();
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [currentPage]);
+
+  // Load accomplishments from Supabase or cache
   useEffect(() => {
     loadAccomplishments();
   }, [currentPage]);
 
   const loadAccomplishments = async () => {
     try {
-      // Get total count
-      const { count } = await supabase
-        .from('accomplishments')
-        .select('*', { count: 'exact', head: true });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      setTotalCount(count || 0);
+      if (isOnline) {
+        // Try to load from Supabase
+        try {
+          // Get total count
+          const { count } = await supabase
+            .from('accomplishments')
+            .select('*', { count: 'exact', head: true });
 
-      // Get paginated data
-      const { data, error } = await supabase
-        .from('accomplishments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
+          setTotalCount(count || 0);
 
-      if (error) throw error;
-      setAccomplishments(data || []);
+          // Get paginated data
+          const { data, error } = await supabase
+            .from('accomplishments')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .range((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE - 1);
+
+          if (error) throw error;
+          
+          setAccomplishments(data || []);
+          
+          // Cache the data
+          if (data) {
+            await offlineManager.cacheAccomplishments(data);
+          }
+        } catch (error) {
+          console.error('Error loading from Supabase, falling back to cache:', error);
+          await loadFromCache(user.id);
+        }
+      } else {
+        // Load from cache when offline
+        await loadFromCache(user.id);
+      }
     } catch (error) {
       console.error('Error loading accomplishments:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFromCache = async (userId: string) => {
+    const cached = await offlineManager.getCachedAccomplishments(userId, currentPage, ITEMS_PER_PAGE);
+    setAccomplishments(cached.data);
+    setTotalCount(cached.total);
   };
 
   const addAccomplishment = async () => {
@@ -77,21 +134,15 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('accomplishments')
-        .insert({
-          text: newAccomplishment.trim(),
-          category: selectedCategory,
-          user_id: user.id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      const accomplishment = await offlineManager.addAccomplishment({
+        text: newAccomplishment.trim(),
+        category: selectedCategory,
+        user_id: user.id
+      });
       
       // If we're on the first page, add the new item to the list
       if (currentPage === 1) {
-        setAccomplishments(prev => [data, ...prev.slice(0, ITEMS_PER_PAGE - 1)]);
+        setAccomplishments(prev => [accomplishment, ...prev.slice(0, ITEMS_PER_PAGE - 1)]);
       }
       
       setTotalCount(prev => prev + 1);
@@ -103,12 +154,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
 
   const deleteAccomplishment = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('accomplishments')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await offlineManager.deleteAccomplishment(id);
       
       setAccomplishments(prev => prev.filter(a => a.id !== id));
       setTotalCount(prev => prev - 1);
@@ -131,12 +177,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
     if (!editText.trim() || !editingId) return;
 
     try {
-      const { error } = await supabase
-        .from('accomplishments')
-        .update({ text: editText.trim() })
-        .eq('id', editingId);
-
-      if (error) throw error;
+      await offlineManager.updateAccomplishment(editingId, editText.trim());
       
       setAccomplishments(prev => 
         prev.map(a => a.id === editingId ? { ...a, text: editText.trim() } : a)
@@ -496,6 +537,9 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
           </a>
         </div>
       </div>
+
+      {/* Offline Indicator */}
+      <OfflineIndicator />
     </div>
   );
 }
