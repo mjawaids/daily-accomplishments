@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, WifiOff, Sync, AlertCircle } from 'lucide-react';
+import { Wifi, WifiOff, FolderSync as Sync, AlertCircle } from 'lucide-react';
 import { offlineManager } from '../lib/offline';
 
 export function OfflineIndicator() {
