@@ -38,7 +38,7 @@ A beautiful, production-ready Progressive Web App (PWA) for tracking daily accom
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/daily-wins.git
+git clone https://github.com/mjawaids/daily-wins.git
 cd daily-wins
 npm install
 ```
@@ -211,7 +211,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 If you have any questions or need help:
-1. Check the [Issues](https://github.com/yourusername/daily-wins/issues) page
+1. Check the [Issues](https://github.com/mjawaids/daily-wins/issues) page
 2. Create a new issue with detailed information
 3. Join our community discussions
 
