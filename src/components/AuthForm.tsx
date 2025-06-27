@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Lock, User, LogIn, UserPlus, ArrowLeft, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { ThemeToggle } from './ThemeToggle';
 
 interface AuthFormProps {
   onAuthSuccess: () => void;
+  onBack: () => void;
+  initialMode?: 'signin' | 'signup';
 }
 
-export function AuthForm({ onAuthSuccess }: AuthFormProps) {
-  const [isLogin, setIsLogin] = useState(true);
+export function AuthForm({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthFormProps) {
+  const [isLogin, setIsLogin] = useState(initialMode === 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,23 +44,33 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center px-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-8 w-full max-w-md">
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={onBack}
+            className="p-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <ThemeToggle />
+        </div>
+
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <User className="w-8 h-8 text-slate-600 mr-3" />
-            <h1 className="text-2xl font-bold text-slate-800">
-              {isLogin ? 'Welcome to Daily Wins' : 'Join Daily Wins'}
+            <User className="w-8 h-8 text-slate-600 dark:text-slate-400 mr-3" />
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+              {isLogin ? 'Welcome Back' : 'Join Daily Wins'}
             </h1>
           </div>
-          <p className="text-slate-600">
+          <p className="text-slate-600 dark:text-slate-400">
             {isLogin ? 'Sign in to track your accomplishments' : 'Start tracking your daily wins'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Email Address
             </label>
             <div className="relative">
@@ -68,14 +81,14 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 placeholder="Enter your email"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               Password
             </label>
             <div className="relative">
@@ -87,15 +100,15 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 placeholder="Enter your password"
               />
             </div>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-              <p className="text-red-600 text-sm">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3">
+              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
             </div>
           )}
 
@@ -118,10 +131,37 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
         <div className="mt-6 text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors"
           >
             {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
+        </div>
+
+        {/* Footer Credits */}
+        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <div className="flex flex-col items-center space-y-3 text-sm">
+            <div className="text-slate-600 dark:text-slate-400">
+              Developed with ❤️ by{' '}
+              <a
+                href="https://jawaid.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+              >
+                Jawaid
+              </a>
+            </div>
+            
+            <a
+              href="https://bolt.new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-xs font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <span>Built with Bolt.new</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       </div>
     </div>
