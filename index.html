@@ -23,6 +23,11 @@
     <!-- Splash Screens for iOS -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
+    <!-- Additional PWA meta tags for better installation prompts -->
+    <meta name="application-name" content="Daily Wins" />
+    <meta name="msapplication-TileColor" content="#2563eb" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    
     <title>Daily Wins - Track Your Accomplishments</title>
   </head>
   <body>
@@ -36,6 +41,21 @@
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      // New content is available, prompt user to refresh
+                      if (confirm('New version available! Refresh to update?')) {
+                        window.location.reload();
+                      }
+                    }
+                  });
+                }
+              });
             })
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);

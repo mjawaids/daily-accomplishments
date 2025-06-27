@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { offlineManager } from '../lib/offline';
 import { OfflineIndicator } from './OfflineIndicator';
 import { ThemeToggle } from './ThemeToggle';
+import { InstallPrompt } from './InstallPrompt';
 import type { Database } from '../lib/supabase';
 
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
@@ -558,6 +559,9 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
 
       {/* Offline Indicator */}
       <OfflineIndicator />
+      
+      {/* Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }

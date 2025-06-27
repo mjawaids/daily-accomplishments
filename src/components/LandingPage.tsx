@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, CheckCircle2, Smartphone, Wifi, WifiOff, Users, Star, ArrowRight, ExternalLink } from 'lucide-react';
+import { InstallPrompt } from './InstallPrompt';
 
 interface LandingPageProps {
   onShowAuth: (mode: 'signin' | 'signup') => void;
@@ -261,6 +262,9 @@ export function LandingPage({ onShowAuth }: LandingPageProps) {
           </div>
         </div>
       </footer>
+
+      {/* Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }
