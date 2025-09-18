@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Clock, CheckCircle2, Edit3, Trash2, Calendar, LogOut, User, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, Edit3, Trash2, Calendar, LogOut, User, ChevronLeft, ChevronRight, ExternalLink, CalendarDays } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { offlineManager } from '../lib/offline';
 import { OfflineIndicator } from './OfflineIndicator';
@@ -40,6 +40,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   const [selectedCategory, setSelectedCategory] = useState<Accomplishment['category']>('work');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [editDate, setEditDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -173,19 +174,52 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   const startEditing = (id: string, text: string) => {
     setEditingId(id);
     setEditText(text);
+    const accomplishment = accomplishments.find(a => a.id === id);
+    if (accomplishment) {
+      // Format date for datetime-local input
+      const date = new Date(accomplishment.created_at);
+      const formattedDate = date.toISOString().slice(0, 16);
+      setEditDate(formattedDate);
+    }
   };
 
   const saveEdit = async () => {
-    if (!editText.trim() || !editingId) return;
+    if (!editText.trim() || !editingId || !editDate) return;
 
     try {
-      await offlineManager.updateAccomplishment(editingId, editText.trim());
+      const updatedDate = new Date(editDate).toISOString();
+      
+      // Update both text and date
+      if (navigator.onLine) {
+        const { error } = await supabase
+          .from('accomplishments')
+          .update({ 
+            text: editText.trim(),
+            created_at: updatedDate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingId);
+
+        if (error) throw error;
+      } else {
+        // For offline, we'll need to extend the offline manager
+        await offlineManager.updateAccomplishment(editingId, editText.trim());
+      }
       
       setAccomplishments(prev => 
-        prev.map(a => a.id === editingId ? { ...a, text: editText.trim() } : a)
+        prev.map(a => a.id === editingId ? { 
+          ...a, 
+          text: editText.trim(),
+          created_at: updatedDate,
+          updated_at: new Date().toISOString()
+        } : a)
       );
       setEditingId(null);
       setEditText('');
+      setEditDate('');
+      
+      // Reload to get proper sorting after date change
+      setTimeout(() => loadAccomplishments(), 100);
     } catch (error) {
       console.error('Error updating accomplishment:', error);
     }
@@ -194,6 +228,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   const cancelEdit = () => {
     setEditingId(null);
     setEditText('');
+    setEditDate('');
   };
 
   const handleSignOut = async () => {
@@ -285,7 +320,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
         </div>
 
         {/* Add New Accomplishment */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 mb-8">
           <div className="flex flex-col space-y-4">
             <div className="flex flex-wrap gap-2">
               {Object.keys(categoryColors).map(category => (
@@ -310,12 +345,12 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
                 onChange={(e) => setNewAccomplishment(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && addAccomplishment()}
                 placeholder="What did you accomplish today?"
-                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
+                className="flex-1 px-3 sm:px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 text-sm sm:text-base"
               />
               <button
                 onClick={addAccomplishment}
                 disabled={!newAccomplishment.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2"
+                className="px-4 sm:px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 text-sm sm:text-base"
               >
                 <Plus className="w-5 h-5" />
                 <span>Add</span>
@@ -343,8 +378,8 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
                   <div key={dateString} className="space-y-6">
                     {/* Date Header */}
                     <div className="flex items-center space-x-4">
-                      <div className="bg-white dark:bg-slate-800 rounded-full px-4 py-2 shadow-sm border border-slate-200 dark:border-slate-700 z-10 relative">
-                        <h3 className="text-lg font-semibold text-slate-800 dark:text-white">
+                      <div className="bg-white dark:bg-slate-800 rounded-full px-3 sm:px-4 py-2 shadow-sm border border-slate-200 dark:border-slate-700 z-10 relative">
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-white">
                           {formatDate(dayAccomplishments[0].created_at)}
                         </h3>
                       </div>
@@ -352,80 +387,89 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
                     </div>
 
                     {/* Accomplishments for this date */}
-                    <div className="space-y-6 ml-0 sm:ml-8">
+                    <div className="space-y-4 sm:space-y-6 ml-0 sm:ml-8">
                       {dayAccomplishments.map((accomplishment) => {
                         const CategoryIcon = categoryIcons[accomplishment.category];
                         
                         return (
-                          <div key={accomplishment.id} className="relative flex items-start space-x-6">
+                          <div key={accomplishment.id} className="relative flex items-start space-x-3 sm:space-x-6">
                             {/* Timeline dot */}
-                            <div className={`relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-800 shadow-sm flex-shrink-0 ${
+                            <div className={`relative z-10 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 sm:border-4 border-white dark:border-slate-800 shadow-sm flex-shrink-0 ${
                               accomplishment.category === 'work' ? 'bg-blue-500' :
                               accomplishment.category === 'personal' ? 'bg-green-500' :
                               accomplishment.category === 'learning' ? 'bg-purple-500' : 'bg-pink-500'
                             }`}>
-                              <CategoryIcon className="w-5 h-5 text-white" />
+                              <CategoryIcon className="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                             </div>
 
                             {/* Content */}
-                            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 group hover:shadow-md transition-all">
+                            <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 group hover:shadow-md transition-all">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${categoryColors[accomplishment.category]}`}>
+                                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3 mb-3">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium border self-start ${categoryColors[accomplishment.category]}`}>
                                       {accomplishment.category}
                                     </span>
-                                    <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm">
-                                      <Clock className="w-4 h-4 mr-1" />
+                                    <div className="flex items-center text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                                      <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                                       {formatTime(accomplishment.created_at)}
                                     </div>
                                   </div>
                                   
                                   {editingId === accomplishment.id ? (
-                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                                    <div className="space-y-3">
                                       <input
                                         type="text"
                                         value={editText}
                                         onChange={(e) => setEditText(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && saveEdit()}
-                                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm sm:text-base"
                                         autoFocus
                                       />
-                                      <div className="flex space-x-2">
+                                      <div className="flex items-center space-x-2">
+                                        <CalendarDays className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+                                        <input
+                                          type="datetime-local"
+                                          value={editDate}
+                                          onChange={(e) => setEditDate(e.target.value)}
+                                          className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                                        />
+                                      </div>
+                                      <div className="flex space-x-2 pt-2">
                                         <button
                                           onClick={saveEdit}
-                                          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+                                          className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-sm font-medium"
                                         >
                                           Save
                                         </button>
                                         <button
                                           onClick={cancelEdit}
-                                          className="px-3 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-all"
+                                          className="flex-1 sm:flex-none px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-all text-sm font-medium"
                                         >
                                           Cancel
                                         </button>
                                       </div>
                                     </div>
                                   ) : (
-                                    <p className="text-slate-700 dark:text-slate-300 text-lg leading-relaxed break-words">
+                                    <p className="text-slate-700 dark:text-slate-300 text-sm sm:text-lg leading-relaxed break-words pr-2 sm:pr-0">
                                       {accomplishment.text}
                                     </p>
                                   )}
                                 </div>
 
                                 {editingId !== accomplishment.id && (
-                                  <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4 flex-shrink-0">
+                                  <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity ml-2 sm:ml-4 flex-shrink-0">
                                     <button
                                       onClick={() => startEditing(accomplishment.id, accomplishment.text)}
-                                      className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                                      className="p-1.5 sm:p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
                                     >
-                                      <Edit3 className="w-4 h-4" />
+                                      <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
                                     </button>
                                     <button
                                       onClick={() => deleteAccomplishment(accomplishment.id)}
-                                      className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                      className="p-1.5 sm:p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                                     </button>
                                   </div>
                                 )}
@@ -444,17 +488,17 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 gap-4">
-            <div className="text-sm text-slate-600 dark:text-slate-400">
+          <div className="mt-8 sm:mt-12 flex flex-col sm:flex-row items-center justify-between bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 gap-4">
+            <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 text-center sm:text-left">
               Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} accomplishments
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="flex items-center space-x-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Previous</span>
               </button>
               
@@ -475,7 +519,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`w-10 h-10 rounded-lg transition-all ${
+                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-all text-sm sm:text-base ${
                         currentPage === pageNum
                           ? 'bg-blue-600 text-white'
                           : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
@@ -490,10 +534,10 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="flex items-center space-x-2 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </div>
           </div>
@@ -501,19 +545,19 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
 
         {/* Stats */}
         {accomplishments.length > 0 && (
-          <div className="mt-8 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Current Page Summary</h3>
+          <div className="mt-6 sm:mt-8 bg-white dark:bg-slate-800 rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-800 dark:text-white mb-4">Current Page Summary</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.keys(categoryColors).map(category => {
                 const count = accomplishments.filter(a => a.category === category).length;
                 return (
                   <div key={category} className="text-center">
-                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-2 ${
+                    <div className={`inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full mb-2 ${
                       category === 'work' ? 'bg-blue-100 dark:bg-blue-900/30' :
                       category === 'personal' ? 'bg-green-100 dark:bg-green-900/30' :
                       category === 'learning' ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-pink-100 dark:bg-pink-900/30'
                     }`}>
-                      <span className={`text-xl font-bold ${
+                      <span className={`text-lg sm:text-xl font-bold ${
                         category === 'work' ? 'text-blue-600 dark:text-blue-400' :
                         category === 'personal' ? 'text-green-600 dark:text-green-400' :
                         category === 'learning' ? 'text-purple-600 dark:text-purple-400' : 'text-pink-600 dark:text-pink-400'
@@ -521,7 +565,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
                         {count}
                       </span>
                     </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 capitalize">{category}</p>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 capitalize">{category}</p>
                   </div>
                 );
               })}
@@ -530,9 +574,9 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
         )}
 
         {/* Footer Credits */}
-        <div className="mt-12 text-center">
+        <div className="mt-8 sm:mt-12 text-center">
           <div className="flex flex-col items-center space-y-4">
-            <div className="text-slate-600 dark:text-slate-400">
+            <div className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
               Developed with ❤️ by{' '}
               <a
                 href="https://jawaid.dev"
@@ -548,10 +592,10 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
               href="https://bolt.new"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="inline-flex items-center space-x-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-xs sm:text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <span>Built with Bolt.new</span>
-              <ExternalLink className="w-4 h-4" />
+              <ExternalLink className="w-3 h-3 sm:w-4 sm:h-4" />
             </a>
           </div>
         </div>

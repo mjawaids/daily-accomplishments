@@ -164,19 +164,25 @@ class OfflineManager {
   }
 
   // Update accomplishment
-  async updateAccomplishment(id: string, text: string): Promise<void> {
+  async updateAccomplishment(id: string, text: string, createdAt?: string): Promise<void> {
     // Try to update online first
     if (navigator.onLine) {
       try {
+        const updateData: any = { text };
+        if (createdAt) {
+          updateData.created_at = createdAt;
+          updateData.updated_at = new Date().toISOString();
+        }
+        
         const { error } = await supabase
           .from('accomplishments')
-          .update({ text })
+          .update(updateData)
           .eq('id', id);
 
         if (error) throw error;
 
         // Update cached version
-        await this.updateCachedAccomplishment(id, text);
+        await this.updateCachedAccomplishment(id, text, createdAt);
         return;
       } catch (error) {
         console.log('Failed to update online, storing offline:', error);
@@ -191,7 +197,7 @@ class OfflineManager {
     await store.put({ id, text, synced: false });
 
     // Update cached version optimistically
-    await this.updateCachedAccomplishment(id, text);
+    await this.updateCachedAccomplishment(id, text, createdAt);
 
     // Register for background sync
     if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
@@ -360,7 +366,7 @@ class OfflineManager {
     });
   }
 
-  private async updateCachedAccomplishment(id: string, text: string): Promise<void> {
+  private async updateCachedAccomplishment(id: string, text: string, createdAt?: string): Promise<void> {
     if (!this.db) return;
 
     const transaction = this.db.transaction(['accomplishments'], 'readwrite');
@@ -372,6 +378,9 @@ class OfflineManager {
         const accomplishment = request.result;
         if (accomplishment) {
           accomplishment.text = text;
+          if (createdAt) {
+            accomplishment.created_at = createdAt;
+          }
           accomplishment.updated_at = new Date().toISOString();
           await store.put(accomplishment);
         }
