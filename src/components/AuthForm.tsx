@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, LogIn, UserPlus, ArrowLeft, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { trackAuthEvent } from '../lib/analytics';
 import { ThemeToggle } from './ThemeToggle';
 
 interface AuthFormProps {
@@ -34,6 +35,7 @@ export function AuthForm({ onAuthSuccess, onBack, initialMode = 'signin' }: Auth
           password,
         });
         if (error) throw error;
+        trackAuthEvent('signup');
       }
       onAuthSuccess();
     } catch (error: any) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
+import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { AccomplishmentApp } from './components/AccomplishmentApp';
@@ -48,16 +49,33 @@ function App() {
   const handleAuthSuccess = () => {
     // User state will be updated by the auth state change listener
     setAppState('app');
+    trackAuthEvent('signin');
   };
 
   const handleSignOut = () => {
     setUser(null);
     setAppState('landing');
+    trackAuthEvent('signout');
   };
 
   const handleBackToLanding = () => {
     setAppState('landing');
   };
+
+  // Track page views when app state changes
+  useEffect(() => {
+    switch (appState) {
+      case 'landing':
+        trackPageView('Landing Page');
+        break;
+      case 'auth':
+        trackPageView('Authentication');
+        break;
+      case 'app':
+        trackPageView('Daily Wins App');
+        break;
+    }
+  }, [appState]);
 
   if (loading) {
     return (
