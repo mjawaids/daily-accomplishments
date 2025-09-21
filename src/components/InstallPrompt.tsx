@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
+import { trackPWAEvent } from '../lib/analytics';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -30,6 +31,7 @@ export function InstallPrompt() {
       // Show our custom install prompt after a delay
       setTimeout(() => {
         setShowPrompt(true);
+        trackPWAEvent('install_prompt_shown');
       }, 3000);
     };
 
@@ -58,6 +60,9 @@ export function InstallPrompt() {
       
       if (outcome === 'accepted') {
         setIsInstalled(true);
+        trackPWAEvent('install_accepted');
+      } else {
+        trackPWAEvent('install_dismissed');
       }
       
       setDeferredPrompt(null);
@@ -69,6 +74,7 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
+    trackPWAEvent('install_dismissed');
     // Don't show again for this session
     sessionStorage.setItem('installPromptDismissed', 'true');
   };

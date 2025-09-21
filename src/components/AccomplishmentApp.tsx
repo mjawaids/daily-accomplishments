@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Clock, CheckCircle2, Edit3, Trash2, Calendar, LogOut, User, ChevronLeft, ChevronRight, ExternalLink, CalendarDays } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { offlineManager } from '../lib/offline';
+import { trackAccomplishmentEvent, trackConnectivityEvent } from '../lib/analytics';
 import { OfflineIndicator } from './OfflineIndicator';
 import { ThemeToggle } from './ThemeToggle';
 import { InstallPrompt } from './InstallPrompt';
@@ -55,6 +56,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
+      trackConnectivityEvent('online');
       // Sync when coming back online
       offlineManager.syncPendingOperations();
       // Reload data from server
@@ -63,6 +65,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
 
     const handleOffline = () => {
       setIsOnline(false);
+      trackConnectivityEvent('offline');
     };
 
     window.addEventListener('online', handleOnline);
@@ -150,6 +153,7 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
       
       setTotalCount(prev => prev + 1);
       setNewAccomplishment('');
+      trackAccomplishmentEvent('add', selectedCategory);
     } catch (error) {
       console.error('Error adding accomplishment:', error);
     }
@@ -165,6 +169,11 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
       // If current page becomes empty and it's not the first page, go to previous page
       if (accomplishments.length === 1 && currentPage > 1) {
         setCurrentPage(prev => prev - 1);
+      }
+      
+      const accomplishment = accomplishments.find(a => a.id === id);
+      if (accomplishment) {
+        trackAccomplishmentEvent('delete', accomplishment.category);
       }
     } catch (error) {
       console.error('Error deleting accomplishment:', error);
@@ -220,6 +229,11 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
       
       // Reload to get proper sorting after date change
       setTimeout(() => loadAccomplishments(), 100);
+      
+      const accomplishment = accomplishments.find(a => a.id === editingId);
+      if (accomplishment) {
+        trackAccomplishmentEvent('edit', accomplishment.category);
+      }
     } catch (error) {
       console.error('Error updating accomplishment:', error);
     }

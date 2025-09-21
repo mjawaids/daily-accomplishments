@@ -122,6 +122,7 @@ Create a `.env` file with your Supabase credentials:
 ```env
 VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_GA_TRACKING_ID=your-google-analytics-id
 ```
 
 ### Database Schema
@@ -154,6 +155,7 @@ npm run build
 Set these in your hosting provider's dashboard:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+- `VITE_GA_TRACKING_ID` (optional)
 
 ## 📱 PWA Installation
 

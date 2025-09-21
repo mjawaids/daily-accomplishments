@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, FolderSync as Sync, AlertCircle } from 'lucide-react';
 import { offlineManager } from '../lib/offline';
+import { trackConnectivityEvent } from '../lib/analytics';
 
 export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -42,6 +43,7 @@ export function OfflineIndicator() {
     setSyncing(true);
     try {
       await offlineManager.syncPendingOperations();
+      trackConnectivityEvent('sync');
       const status = await offlineManager.getSyncStatus();
       setSyncStatus(status);
     } catch (error) {
