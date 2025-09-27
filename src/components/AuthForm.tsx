@@ -155,12 +155,12 @@ export function AuthForm({ onAuthSuccess, onBack, initialMode = 'signin' }: Auth
             </div>
             
             <a
-              href="https://bolt.new"
+              href="https://ibexoft.com"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center space-x-2 px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-xs font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              <span>Built with Bolt.new</span>
+              <span>Powered by Ibexoft</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>

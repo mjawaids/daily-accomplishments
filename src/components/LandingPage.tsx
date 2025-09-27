@@ -251,12 +251,12 @@ export function LandingPage({ onShowAuth }: LandingPageProps) {
               </div>
               
               <a
-                href="https://bolt.new"
+                href="https://ibexoft.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
-                <span>Built with Bolt.new</span>
+                <span>Powered by Ibexoft</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>
