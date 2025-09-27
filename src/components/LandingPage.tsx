@@ -1,9 +1,14 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, CheckCircle2, Smartphone, Wifi, WifiOff, Users, Star, ArrowRight, ExternalLink } from 'lucide-react';
 import { InstallPrompt } from './InstallPrompt';
 
 interface LandingPageProps {
   onShowAuth: (mode: 'signin' | 'signup') => void;
+  onShowPrivacy?: () => void;
+  onShowRefund?: () => void;
+  onShowTerms?: () => void;
+  onShowPricing?: () => void;
 }
 
 export function LandingPage({ onShowAuth }: LandingPageProps) {
@@ -95,7 +100,7 @@ export function LandingPage({ onShowAuth }: LandingPageProps) {
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-lg px-4 py-2 text-sm text-slate-600 dark:text-slate-300">
-                    dailywins.app
+                    dailywins
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -256,8 +261,17 @@ export function LandingPage({ onShowAuth }: LandingPageProps) {
               </a>
             </div>
 
-            <div className="text-slate-400 text-sm">
-              © 2025 Daily Wins. All rights reserved.
+            <div className="text-slate-400 text-sm text-center flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <div>© 2025 Daily Wins. All rights reserved.</div>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link to="/privacy" className="text-blue-400 hover:text-blue-300 transition-colors">Privacy Policy</Link>
+                <span className="hidden sm:inline">•</span>
+                <Link to="/refund" className="text-blue-400 hover:text-blue-300 transition-colors">Refund Policy</Link>
+                <span className="hidden sm:inline">•</span>
+                <Link to="/terms" className="text-blue-400 hover:text-blue-300 transition-colors">Terms & Conditions</Link>
+                <span className="hidden sm:inline">•</span>
+                <Link to="/pricing" className="text-blue-400 hover:text-blue-300 transition-colors">Pricing</Link>
+              </div>
             </div>
           </div>
         </div>

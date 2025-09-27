@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { AccomplishmentApp } from './components/AccomplishmentApp';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import RefundPolicy from './pages/RefundPolicy';
+import TermsConditions from './pages/TermsConditions';
+import Pricing from './pages/Pricing';
 import type { User } from '@supabase/supabase-js';
 
 type AppState = 'landing' | 'auth' | 'app';
@@ -61,6 +66,7 @@ function App() {
   const handleBackToLanding = () => {
     setAppState('landing');
   };
+  // Policy and pricing pages are now handled by routes
 
   // Track page views when app state changes
   useEffect(() => {
@@ -85,30 +91,34 @@ function App() {
     );
   }
 
-  if (appState === 'landing') {
-    return <LandingPage onShowAuth={handleShowAuth} />;
-  }
-
-  if (appState === 'auth') {
-    return (
-      <AuthForm 
-        onAuthSuccess={handleAuthSuccess} 
-        onBack={handleBackToLanding}
-        initialMode={authMode}
+  return (
+    <Routes>
+      <Route 
+        path="/" 
+        element={
+          appState === 'auth' ? (
+            <AuthForm 
+              onAuthSuccess={handleAuthSuccess} 
+              onBack={handleBackToLanding}
+              initialMode={authMode}
+            />
+          ) : user ? (
+            <AccomplishmentApp 
+              onSignOut={handleSignOut} 
+              userEmail={user.email || ''} 
+            />
+          ) : (
+            <LandingPage onShowAuth={handleShowAuth} />
+          )
+        }
       />
-    );
-  }
-
-  if (user) {
-    return (
-      <AccomplishmentApp 
-        onSignOut={handleSignOut} 
-        userEmail={user.email || ''} 
-      />
-    );
-  }
-
-  return <LandingPage onShowAuth={handleShowAuth} />;
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/refund" element={<RefundPolicy />} />
+      <Route path="/terms" element={<TermsConditions />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="*" element={<LandingPage onShowAuth={handleShowAuth} />} />
+    </Routes>
+  );
 }
 
 export default App;
