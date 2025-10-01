@@ -1,55 +1,61 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { PageHeader } from '../components/PageHeader';
+import { PageFooter } from '../components/PageFooter';
 
-interface TermsConditionsProps {
-  onBack?: () => void;
-}
-
-const TermsConditions: React.FC<TermsConditionsProps> = ({ onBack }) => {
+const TermsConditions: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-8">
-          {onBack ? (
-            <button 
-              onClick={onBack}
-              className="mb-6 inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-              Back to Home
-            </button>
-          ) : (
-            <Link 
-              to="/"
-              className="mb-6 inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-              Back to Home
-            </Link>
-          )}
-          
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Terms & Conditions</h1>
-          
-          <div className="prose prose-lg text-gray-700 dark:text-gray-300 max-w-none space-y-4">
-            <p>
-              By using Daily Wins, you agree to use the app for personal or team productivity only. Paid plans renew automatically unless 
-              canceled before the renewal date. You may correct order errors before confirming purchase. After payment, activation is 
-              immediate and a confirmation email will include links to our Terms, Refund Policy, and support.
-            </p>
-            <p>
-              Our order process is conducted by Paddle.com, the Merchant of Record for all our orders. Paddle handles customer service 
-              inquiries and returns.
-            </p>
-            <p>
-              We may update these terms; if so, we will notify Paddle and update this page.
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
+      <PageHeader title="Terms & Conditions" />
+      
+      <main className="flex-1">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-8">
+            <div className="prose prose-lg dark:prose-invert max-w-none">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+                <strong>Effective Date:</strong> January 1st, 2025
+              </p>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Introduction</h2>
+              <p className="mb-6">
+                Welcome to DailyWins (https://dailywins.ibexoft.com), a product owned and operated by <strong>Muhammad Jawaid Shamshad</strong>. 
+                By using our services, you agree to these Terms & Conditions.
+              </p>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Company & Payments</h2>
+              <ul className="space-y-2 mb-6">
+                <li>DailyWins is sold via Paddle, which acts as the Merchant of Record. Paddle handles billing, taxes, receipts, and compliance.</li>
+                <li>By purchasing, you also agree to Paddle's <a href="https://paddle.com/legal/buyer-terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Buyer Terms</a>.</li>
+              </ul>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Services</h2>
+              <p className="mb-6">
+                DailyWins provides a daily productivity tracker helping users log wins, track streaks, and stay motivated. 
+                Features may change as we improve the service.
+              </p>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Accounts & Usage</h2>
+              <ul className="space-y-2 mb-6">
+                <li>You must provide accurate information during signup.</li>
+                <li>You're responsible for maintaining your login credentials.</li>
+                <li>Misuse (fraud, abuse, violating laws) may result in account suspension.</li>
+              </ul>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Refunds & Cancellations</h2>
+              <ul className="space-y-2 mb-6">
+                <li>Refunds follow our Refund Policy.</li>
+                <li>You may cancel your subscription anytime; access continues until the end of the billing period.</li>
+              </ul>
+
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Liability</h2>
+              <p className="mb-6">
+                We provide DailyWins "as is" without warranties. We are not liable for indirect, incidental, or consequential damages.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      <PageFooter />
     </div>
   );
 };
