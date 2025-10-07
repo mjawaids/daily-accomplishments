@@ -213,7 +213,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 If you have any questions or need help:
-1. Check the [Issues](https://github.com/mjawaids/daily-wins/issues) page
+1. Check the [Issues](https://github.com/mjawaids/daily-accomplishments/issues) page
 2. Create a new issue with detailed information
 3. Join our community discussions
 
