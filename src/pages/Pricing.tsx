@@ -1,4 +1,5 @@
 import React from 'react';
+import { openCheckout } from '../lib/paddle';
 import { Check, Star, Zap, Shield, Download } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { PageFooter } from '../components/PageFooter';
@@ -9,7 +10,21 @@ const Pricing: React.FC = () => {
   };
 
   const handleComingSoon = () => {
-    alert('Pro plan is coming soon! Sign up for the free tier to be notified when it\'s available.');
+    // Try to open Paddle checkout if price id is configured, otherwise show a notice
+    const env = import.meta.env as unknown as Record<string, string | undefined>;
+    const priceId = env.VITE_PADDLE_PRICE_ID || (window as unknown as Window & { VITE_PADDLE_PRICE_ID?: string }).VITE_PADDLE_PRICE_ID;
+    
+    if (!priceId) {
+      console.warn('VITE_PADDLE_PRICE_ID not configured');
+      alert('Pro plan is coming soon! Sign up for the free tier to be notified when it\'s available.');
+      return;
+    }
+
+    console.log('Attempting to open Paddle checkout with price ID:', priceId);
+    openCheckout(priceId).catch((err) => {
+      console.error('Failed to open Paddle checkout', err);
+      alert('Unable to open checkout at the moment. Please try again later.');
+    });
   };
 
   return (
