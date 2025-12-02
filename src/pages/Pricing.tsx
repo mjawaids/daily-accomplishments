@@ -1,5 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { openCheckout } from '../lib/paddle';
+import { supabase } from '../lib/supabase';
 import { Check, Star, Zap, Shield, Download } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { PageFooter } from '../components/PageFooter';
@@ -9,22 +11,43 @@ const Pricing: React.FC = () => {
     window.location.href = '/';
   };
 
-  const handleComingSoon = () => {
-    // Try to open Paddle checkout if price id is configured, otherwise show a notice
+  const navigate = useNavigate();
+
+  const handleComingSoon = async () => {
+    // Ensure priceId configured
     const env = import.meta.env as unknown as Record<string, string | undefined>;
     const priceId = env.VITE_PADDLE_PRICE_ID || (window as unknown as Window & { VITE_PADDLE_PRICE_ID?: string }).VITE_PADDLE_PRICE_ID;
-    
     if (!priceId) {
       console.warn('VITE_PADDLE_PRICE_ID not configured');
       alert('Pro plan is coming soon! Sign up for the free tier to be notified when it\'s available.');
       return;
     }
 
-    console.log('Attempting to open Paddle checkout with price ID:', priceId);
-    openCheckout(priceId).catch((err) => {
+    // Require user to be signed in before opening checkout
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      // User not signed in: redirect to login with checkout intent param
+      // After login, App will see ?checkout=pro and trigger checkout
+      navigate('/?auth=signin&checkout=pro');
+      return;
+    }
+
+    try {
+      // Pass customer email and passthrough (user id) so we can reconcile on webhook
+      const passthrough = JSON.stringify({ userId: user.id });
+      const options = {
+        customer: { email: user.email },
+        passthrough,
+        // Ensure Paddle redirects back to our app after success so we can reconcile
+        success_url: `${window.location.origin}/checkout-success`,
+      } as Record<string, unknown>;
+
+      console.log('Attempting to open Paddle checkout with price ID:', priceId, 'for user', user.id);
+      await openCheckout(priceId, options);
+    } catch (err) {
       console.error('Failed to open Paddle checkout', err);
       alert('Unable to open checkout at the moment. Please try again later.');
-    });
+    }
   };
 
   return (

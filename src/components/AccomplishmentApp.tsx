@@ -27,6 +27,8 @@ const categoryIcons = {
 interface AccomplishmentAppProps {
   onSignOut: () => void;
   userEmail: string;
+  shouldOpenCheckout?: boolean;
+  onCheckoutComplete?: () => void;
 }
 
 interface GroupedAccomplishments {
@@ -35,7 +37,7 @@ interface GroupedAccomplishments {
 
 const ITEMS_PER_PAGE = 10;
 
-export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppProps) {
+export function AccomplishmentApp({ onSignOut, userEmail, shouldOpenCheckout, onCheckoutComplete }: AccomplishmentAppProps) {
   const [accomplishments, setAccomplishments] = useState<Accomplishment[]>([]);
   const [newAccomplishment, setNewAccomplishment] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Accomplishment['category']>('work');
@@ -46,10 +48,61 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [subscription, setSubscription] = useState<string | null>(null);
 
-  // Initialize offline manager
+  // Handle checkout trigger from parent when user authenticated via Pro button
+  useEffect(() => {
+    if (shouldOpenCheckout && onCheckoutComplete) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const env = import.meta.env as unknown as Record<string, string | undefined>;
+            const priceId = env.VITE_PADDLE_PRICE_ID;
+            if (priceId) {
+              const passthrough = JSON.stringify({ userId: user.id });
+              const options = {
+                customer: { email: user.email },
+                passthrough,
+                success_url: `${window.location.origin}/checkout-success`,
+              } as Record<string, unknown>;
+
+              console.log('[Checkout] Opening Paddle checkout for authenticated user');
+              const { openCheckout } = await import('../lib/paddle');
+              await openCheckout(priceId, options);
+            }
+          }
+        } catch (err) {
+          console.error('[Checkout] Error opening checkout:', err);
+        } finally {
+          onCheckoutComplete();
+        }
+      })();
+    }
+  }, [shouldOpenCheckout, onCheckoutComplete]);
+
+  // Initialize offline manager and load subscription status
   useEffect(() => {
     offlineManager.init();
+    // Load subscription status from profiles table
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('subscription_plan')
+            .eq('id', user.id)
+            .single();
+          if (profile?.subscription_plan === 'pro') {
+            setSubscription('pro');
+          }
+        }
+      } catch (err) {
+        // Profile may not exist yet
+        console.log('No profile found');
+      }
+    })();
   }, []);
 
   // Monitor online/offline status
@@ -317,6 +370,11 @@ export function AccomplishmentApp({ onSignOut, userEmail }: AccomplishmentAppPro
               <div className="flex items-center text-slate-600 dark:text-slate-400">
                 <User className="w-4 h-4 mr-2" />
                 <span className="text-sm">{userEmail}</span>
+                {subscription === 'pro' && (
+                  <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                    Pro
+                  </span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <ThemeToggle />
