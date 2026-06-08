@@ -44,7 +44,6 @@ export function AccomplishmentApp({ onSignOut, userEmail, shouldOpenCheckout, on
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editDate, setEditDate] = useState('');
-  const [editOriginalDate, setEditOriginalDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -239,14 +238,10 @@ export function AccomplishmentApp({ onSignOut, userEmail, shouldOpenCheckout, on
     setEditText(text);
     const accomplishment = accomplishments.find(a => a.id === id);
     if (accomplishment) {
-      // Format date for datetime-local input, which expects LOCAL time.
-      // Subtract the timezone offset so the picker shows the same wall-clock
-      // time as the entry rather than its UTC value.
+      // Format date for datetime-local input
       const date = new Date(accomplishment.created_at);
-      const localMs = date.getTime() - date.getTimezoneOffset() * 60000;
-      const formattedDate = new Date(localMs).toISOString().slice(0, 16);
+      const formattedDate = date.toISOString().slice(0, 16);
       setEditDate(formattedDate);
-      setEditOriginalDate(formattedDate);
     }
   };
 
@@ -254,50 +249,37 @@ export function AccomplishmentApp({ onSignOut, userEmail, shouldOpenCheckout, on
     if (!editText.trim() || !editingId || !editDate) return;
 
     try {
-      // Only change created_at when the user actually edited the date picker.
-      // Editing just the text must preserve the original timestamp exactly.
-      const dateChanged = editDate !== editOriginalDate;
-      // new Date('YYYY-MM-DDTHH:mm') parses a datetime-local string as local
-      // time, so this converts the picker value back to the correct UTC instant.
       const updatedDate = new Date(editDate).toISOString();
-
-      // Update text, and the date only if it changed
+      
+      // Update both text and date
       if (navigator.onLine) {
-        const updatePayload: { text: string; updated_at: string; created_at?: string } = {
-          text: editText.trim(),
-          updated_at: new Date().toISOString()
-        };
-        if (dateChanged) {
-          updatePayload.created_at = updatedDate;
-        }
-
         const { error } = await supabase
           .from('accomplishments')
-          .update(updatePayload)
+          .update({ 
+            text: editText.trim(),
+            created_at: updatedDate,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', editingId);
 
         if (error) throw error;
       } else {
-        await offlineManager.updateAccomplishment(
-          editingId,
-          editText.trim(),
-          dateChanged ? updatedDate : undefined
-        );
+        // For offline, we'll need to extend the offline manager
+        await offlineManager.updateAccomplishment(editingId, editText.trim());
       }
-
-      setAccomplishments(prev =>
-        prev.map(a => a.id === editingId ? {
-          ...a,
+      
+      setAccomplishments(prev => 
+        prev.map(a => a.id === editingId ? { 
+          ...a, 
           text: editText.trim(),
-          ...(dateChanged ? { created_at: updatedDate } : {}),
+          created_at: updatedDate,
           updated_at: new Date().toISOString()
         } : a)
       );
       setEditingId(null);
       setEditText('');
       setEditDate('');
-      setEditOriginalDate('');
-
+      
       // Reload to get proper sorting after date change
       setTimeout(() => loadAccomplishments(), 100);
       
@@ -314,7 +296,6 @@ export function AccomplishmentApp({ onSignOut, userEmail, shouldOpenCheckout, on
     setEditingId(null);
     setEditText('');
     setEditDate('');
-    setEditOriginalDate('');
   };
 
   const handleSignOut = async () => {
