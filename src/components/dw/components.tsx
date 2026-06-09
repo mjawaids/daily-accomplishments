@@ -8,15 +8,19 @@ import type { Category, DayGroup, Win } from '../../lib/winsData';
 import { relativeDay, dayLabel, shortDay } from '../../lib/winsData';
 
 export function Avatar({ size = 34 }: { size?: number }) {
-  const { prefs } = useDW();
+  const { prefs, avatarUrl } = useDW();
   const initials = prefs.name
     .split(' ')
     .map((s) => s[0])
     .slice(0, 2)
     .join('');
   return (
-    <div className="av" style={{ width: size, height: size, fontSize: size * 0.4 }}>
-      {initials}
+    <div className="av" style={{ width: size, height: size, fontSize: size * 0.4, overflow: 'hidden' }}>
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        initials
+      )}
     </div>
   );
 }

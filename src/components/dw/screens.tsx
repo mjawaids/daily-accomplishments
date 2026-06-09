@@ -212,8 +212,8 @@ export function Insights({ device }: { device: Device }) {
         title="Insights"
         right={
           device === 'mobile' ? (
-            <button className="dw-iconbtn" onClick={() => setScreen('timeline')}>
-              <Icon name="home" size={19} />
+            <button className="dw-iconbtn" title="Profile" onClick={() => setScreen('profile')}>
+              <Avatar size={40} />
             </button>
           ) : null
         }

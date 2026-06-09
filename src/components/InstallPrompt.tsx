@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { trackPWAEvent } from '../lib/analytics';
+import { Icon } from './dw/icons';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -15,8 +15,8 @@ export function InstallPrompt() {
   useEffect(() => {
     // Check if app is already installed
     const checkInstalled = () => {
-      if (window.matchMedia('(display-mode: standalone)').matches || 
-          (window.navigator as any).standalone === true) {
+      const nav = window.navigator as Navigator & { standalone?: boolean };
+      if (window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true) {
         setIsInstalled(true);
       }
     };
@@ -27,7 +27,6 @@ export function InstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
       // Show our custom install prompt after a delay
       setTimeout(() => {
         setShowPrompt(true);
@@ -53,18 +52,15 @@ export function InstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-
     try {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      
       if (outcome === 'accepted') {
         setIsInstalled(true);
         trackPWAEvent('install_accepted');
       } else {
         trackPWAEvent('install_dismissed');
       }
-      
       setDeferredPrompt(null);
       setShowPrompt(false);
     } catch (error) {
@@ -85,47 +81,66 @@ export function InstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-4">
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">
-              Install Daily Wins
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
-              Add to your home screen for quick access and offline use
-            </p>
-            
-            <div className="flex space-x-2">
-              <button
-                onClick={handleInstallClick}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
-              >
-                <Download className="w-3 h-3" />
-                <span>Install</span>
-              </button>
-              <button
-                onClick={handleDismiss}
-                className="px-3 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg text-xs transition-colors"
-              >
-                Not now
-              </button>
-            </div>
-          </div>
-          
-          <button
-            onClick={handleDismiss}
-            className="flex-shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+    <div
+      style={{
+        position: 'fixed',
+        left: 16,
+        right: 16,
+        bottom: 'calc(84px + env(safe-area-inset-bottom))',
+        maxWidth: 380,
+        marginLeft: 'auto',
+        zIndex: 70,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
+          borderRadius: 18,
+          padding: '14px 16px',
+          boxShadow: 'var(--shadow)',
+        }}
+      >
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            flex: 'none',
+            borderRadius: 12,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'var(--accent-soft)',
+            color: 'var(--accent)',
+          }}
+        >
+          <Icon name="device" size={20} />
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Install DailyWins</div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '2px 0 10px' }}>
+            Add to your home screen for quick access and offline use.
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="dw-btn sm" onClick={handleInstallClick}>
+              <Icon name="download" size={15} sw={2.2} />
+              Install
+            </button>
+            <button className="dw-btn ghost sm" onClick={handleDismiss}>
+              Not now
+            </button>
+          </div>
+        </div>
+        <button
+          className="dw-iconbtn"
+          style={{ width: 30, height: 30, boxShadow: 'none', background: 'transparent' }}
+          onClick={handleDismiss}
+          title="Dismiss"
+        >
+          <Icon name="x" size={16} />
+        </button>
       </div>
     </div>
   );

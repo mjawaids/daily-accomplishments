@@ -7,25 +7,21 @@ import { useDevice, useResolvedTheme } from './useDevice';
 import type { Device } from './useDevice';
 import { Icon, Logo } from './icons';
 import type { IconName } from './icons';
-import { EntryForm } from './components';
+import { Avatar, EntryForm } from './components';
 import { Timeline, Insights } from './screens';
 import { Profile } from './screens2';
+import { InstallPrompt } from '../InstallPrompt';
 
 // ---- desktop sidebar ----
 function Sidebar() {
   const { screen, setScreen, entries, openAdd, prefs } = useDW();
-  const item = (id: 'timeline' | 'insights' | 'profile', icon: IconName, label: string) => (
+  const item = (id: 'timeline' | 'insights', icon: IconName, label: string) => (
     <button key={id} className={'dw-navitem' + (screen === id ? ' active' : '')} onClick={() => setScreen(id)}>
       <Icon name={icon} size={20} />
       <span className="lbl">{label}</span>
       {id === 'timeline' && <span className="ct">{entries.length}</span>}
     </button>
   );
-  const initials = prefs.name
-    .split(' ')
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join('');
   return (
     <div className="dw-sidebar">
       <div style={{ padding: '4px 8px 22px' }}>
@@ -38,39 +34,32 @@ function Sidebar() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {item('timeline', 'home', 'Timeline')}
         {item('insights', 'insights', 'Insights')}
-        {item('profile', 'user', 'Profile')}
       </div>
-      <div
-        style={{
-          marginTop: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '10px 8px',
-          borderTop: '1px solid var(--line)',
-        }}
+      {/* user chip opens Profile (no separate Profile nav link) */}
+      <button
+        className={'dw-navitem' + (screen === 'profile' ? ' active' : '')}
+        title="Profile"
+        onClick={() => setScreen('profile')}
+        style={{ marginTop: 'auto', gap: 10, padding: '10px 8px', borderTop: '1px solid var(--line)', borderRadius: 0 }}
       >
-        <div className="dw-avatar" style={{ width: 36, height: 36, borderRadius: 12, fontSize: 14 }}>
-          {initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+        <Avatar size={36} />
+        <div className="lbl" style={{ minWidth: 0, fontSize: 13, textAlign: 'left' }}>
           <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {prefs.name}
           </div>
           <div style={{ color: 'var(--muted)', fontSize: 11.5 }}>Free plan</div>
         </div>
-      </div>
+      </button>
     </div>
   );
 }
 
-// ---- mobile bottom nav ----
+// ---- mobile bottom nav (Profile is reached via the header avatar) ----
 function MobileNav() {
   const { screen, setScreen } = useDW();
-  const items: Array<['timeline' | 'insights' | 'profile', IconName, string]> = [
+  const items: Array<['timeline' | 'insights', IconName, string]> = [
     ['timeline', 'home', 'Home'],
     ['insights', 'insights', 'Insights'],
-    ['profile', 'user', 'Profile'],
   ];
   return (
     <div className="dw-tabbar">
@@ -147,6 +136,7 @@ export function AppShell() {
       <AddEditLayer />
       <Toast />
       <Confetti />
+      <InstallPrompt />
     </div>
   );
 }

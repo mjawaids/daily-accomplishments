@@ -34,7 +34,7 @@ function ToggleRow({ icon, title, sub, on, onToggle }: ToggleRowProps) {
 }
 
 export function Profile({ device }: { device: Device }) {
-  const { prefs, setPrefs, setScreen, entries, clearAll, onSignOut } = useDW();
+  const { prefs, setPrefs, setScreen, entries, clearAll, onSignOut, avatarUrl } = useDW();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(prefs.name);
   const [email, setEmail] = useState(prefs.email);
@@ -60,12 +60,16 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       <div className="dw-prof-head">
-        <div className="dw-avatar">
-          {prefs.name
-            .split(' ')
-            .map((s) => s[0])
-            .slice(0, 2)
-            .join('')}
+        <div className="dw-avatar" style={avatarUrl ? { overflow: 'hidden' } : undefined}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            prefs.name
+              .split(' ')
+              .map((s) => s[0])
+              .slice(0, 2)
+              .join('')
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (

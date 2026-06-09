@@ -59,6 +59,7 @@ export interface WinsContextValue {
   deleteWin: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   onSignOut: () => void;
+  avatarUrl?: string;
 }
 
 const WinsContext = createContext<WinsContextValue | null>(null);
@@ -70,9 +71,9 @@ export const useDW = (): WinsContextValue => {
 
 const PREFS_KEY = 'dw_prefs';
 
-function loadPrefs(email: string): Prefs {
+function loadPrefs(email: string, displayName?: string): Prefs {
   const fallback: Prefs = {
-    name: email ? email.split('@')[0] : 'there',
+    name: displayName || (email ? email.split('@')[0] : 'there'),
     email,
     theme: 'light',
     notifications: true,
@@ -91,11 +92,13 @@ function loadPrefs(email: string): Prefs {
 
 interface WinsProviderProps {
   userEmail: string;
+  userName?: string;
+  avatarUrl?: string;
   onSignOut: () => void;
   children: React.ReactNode;
 }
 
-export function WinsProvider({ userEmail, onSignOut, children }: WinsProviderProps) {
+export function WinsProvider({ userEmail, userName, avatarUrl, onSignOut, children }: WinsProviderProps) {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<Win[]>([]);
   const [screen, setScreenRaw] = useState<Screen>('timeline');
@@ -104,7 +107,7 @@ export function WinsProvider({ userEmail, onSignOut, children }: WinsProviderPro
   const [visibleDays, setVisibleDays] = useState(6);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [celebrate, setCelebrate] = useState(0);
-  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs(userEmail));
+  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs(userEmail, userName));
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -294,6 +297,7 @@ export function WinsProvider({ userEmail, onSignOut, children }: WinsProviderPro
     deleteWin,
     clearAll,
     onSignOut,
+    avatarUrl,
   };
 
   return <WinsContext.Provider value={value}>{children}</WinsContext.Provider>;

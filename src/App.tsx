@@ -121,8 +121,12 @@ function App() {
       return <Onboarding onDone={finishOnboarding} />;
     }
     if (user) {
+      // OAuth providers (e.g. Google) put the display name + photo in user_metadata.
+      const meta = (user.user_metadata || {}) as Record<string, string | undefined>;
+      const userName = meta.full_name || meta.name;
+      const avatarUrl = meta.avatar_url || meta.picture;
       return (
-        <WinsProvider userEmail={user.email || ''} onSignOut={handleSignOut}>
+        <WinsProvider userEmail={user.email || ''} userName={userName} avatarUrl={avatarUrl} onSignOut={handleSignOut}>
           <AppShell />
         </WinsProvider>
       );
