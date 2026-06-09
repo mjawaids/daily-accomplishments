@@ -1,0 +1,404 @@
+/* ============================================================
+   DailyWins — design tokens + components
+   Ported from the Claude Design handoff (app/dailywins.css).
+   Scoped under .dw-app. Theming via data-attributes:
+   data-theme=light|dark  data-accent=sunrise|forest|indigo|berry
+   data-font=bricolage|space|outfit   data-device=mobile|desktop
+   ============================================================ */
+
+.dw-app{
+  /* fonts */
+  --font-display:'Bricolage Grotesque', Georgia, serif;
+  --font-body:'Hanken Grotesque', system-ui, sans-serif;
+
+  /* fixed category accents (OKLCH, shared C+L, hue varies) */
+  --cat-work:oklch(0.60 0.13 250);
+  --cat-personal:oklch(0.64 0.15 18);
+  --cat-learning:oklch(0.58 0.14 300);
+  --cat-health:oklch(0.62 0.12 152);
+
+  /* brand accent (overridden per data-accent) */
+  --accent:#e8704a;
+  --accent-2:#f2b134;
+  --accent-ink:#ffffff;
+
+  /* light surfaces (warm) */
+  --bg:#fbf5ef;
+  --surface:#ffffff;
+  --surface-2:#f6efe6;
+  --surface-3:#f0e7da;
+  --ink:#2a2622;
+  --ink-2:#5b5147;
+  --muted:#9a8d7f;
+  --faint:#c9bdae;
+  --line:#ece2d6;
+  --line-2:#e3d7c8;
+  --shadow:0 10px 30px -12px rgba(74,52,32,0.28);
+  --shadow-sm:0 4px 14px -8px rgba(74,52,32,0.30);
+  --accent-soft:color-mix(in oklab, var(--accent) 12%, var(--surface));
+  --accent-soft-2:color-mix(in oklab, var(--accent) 18%, transparent);
+
+  color:var(--ink);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  line-height:1.45;
+}
+
+/* ---- accent themes ---- */
+.dw-app[data-accent="sunrise"]{--accent:#e8704a;--accent-2:#f2b134;}
+.dw-app[data-accent="forest"]{--accent:#3f8f63;--accent-2:#cdb667;}
+.dw-app[data-accent="indigo"]{--accent:#6366d8;--accent-2:#7aa2e8;}
+.dw-app[data-accent="berry"]{--accent:#c14a72;--accent-2:#e89bb0;}
+
+/* ---- fonts ---- */
+.dw-app[data-font="bricolage"]{--font-display:'Bricolage Grotesque',Georgia,serif;--font-body:'Hanken Grotesque',system-ui,sans-serif;}
+.dw-app[data-font="space"]{--font-display:'Space Grotesk',system-ui,sans-serif;--font-body:'IBM Plex Sans',system-ui,sans-serif;}
+.dw-app[data-font="outfit"]{--font-display:'Outfit',system-ui,sans-serif;--font-body:'Public Sans',system-ui,sans-serif;}
+
+/* ---- dark mode ---- */
+.dw-app[data-theme="dark"]{
+  --bg:#191512;
+  --surface:#221d19;
+  --surface-2:#2a241f;
+  --surface-3:#322a24;
+  --ink:#f4ece2;
+  --ink-2:#cabba9;
+  --muted:#9c8e7e;
+  --faint:#6e6356;
+  --line:#322a23;
+  --line-2:#3b322a;
+  --shadow:0 16px 40px -16px rgba(0,0,0,0.6);
+  --shadow-sm:0 6px 18px -10px rgba(0,0,0,0.55);
+  --accent-soft:color-mix(in oklab, var(--accent) 20%, var(--surface));
+  --accent-ink:#ffffff;
+}
+
+/* ============================================================ base */
+.dw-app *{box-sizing:border-box;margin:0;padding:0}
+.dw-app{
+  position:relative; width:100%; min-height:100vh; height:100vh;
+  background:var(--bg);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.dw-scroll{flex:1; overflow-y:auto; overflow-x:hidden; scroll-behavior:smooth; position:relative}
+.dw-scroll::-webkit-scrollbar{width:10px}
+.dw-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid transparent;background-clip:padding-box}
+.dw-app button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.dw-app input,.dw-app textarea,.dw-app select{font-family:inherit;color:inherit}
+.dw-display{font-family:var(--font-display);letter-spacing:-0.02em;line-height:1.04}
+.dw-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace}
+
+/* ============================================================ device frames */
+.dw-app[data-device="mobile"]{ --pad:18px; }
+.dw-app[data-device="desktop"]{ --pad:0px; flex-direction:row; }
+
+/* mobile: add safe spacing for status bar / home indicator (PWA full-screen) */
+.dw-app[data-device="mobile"] .dw-scroll{padding-top:max(12px, env(safe-area-inset-top))}
+
+/* ============================================================ DESKTOP shell */
+.dw-sidebar{
+  width:236px; flex:none; height:100%;
+  background:var(--surface); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; padding:22px 16px;
+}
+.dw-main{flex:1; min-width:0; display:flex; flex-direction:column; height:100%}
+.dw-app[data-device="desktop"] .dw-scroll{padding:0}
+.dw-canvas{max-width:760px; margin:0 auto; width:100%; padding:30px 30px 60px}
+.dw-app[data-device="desktop"] .dw-canvas--wide{max-width:980px}
+
+/* ============================================================ brand mark + logo */
+.dw-mark{border-radius:30%;background:radial-gradient(120% 120% at 30% 18%,var(--accent-2),var(--accent));
+  display:grid;place-items:center;box-shadow:0 8px 20px -8px color-mix(in oklab,var(--accent) 70%,transparent);flex:none}
+.dw-logo{display:flex;align-items:center;gap:11px}
+.dw-logo .word{font-family:var(--font-display);font-weight:700;letter-spacing:-0.02em;color:var(--ink)}
+.dw-logo .word b{color:var(--accent);font-weight:700}
+
+/* ============================================================ top header (mobile) */
+.dw-top{display:flex;align-items:center;justify-content:space-between;padding:6px var(--pad) 12px}
+.dw-top .greet{font-size:13px;color:var(--muted);font-weight:600}
+.dw-top h1{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:-0.025em;margin-top:1px}
+.dw-iconbtn{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
+  background:var(--surface);box-shadow:var(--shadow-sm);color:var(--ink-2);transition:.18s}
+.dw-iconbtn:hover{color:var(--ink);transform:translateY(-1px)}
+.dw-iconbtn:active{transform:scale(.94)}
+
+/* streak pill */
+.dw-streak{display:inline-flex;align-items:center;gap:7px;padding:7px 13px 7px 10px;border-radius:999px;
+  background:linear-gradient(100deg,color-mix(in oklab,var(--accent) 16%,var(--surface)),color-mix(in oklab,var(--accent-2) 18%,var(--surface)));
+  border:1px solid color-mix(in oklab,var(--accent) 22%,transparent);font-weight:700;font-size:13px;color:var(--ink)}
+.dw-streak .n{font-family:var(--font-display);color:var(--accent)}
+
+/* ============================================================ category chips */
+.dw-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:999px;
+  font-size:12.5px;font-weight:600;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
+  transition:.15s;white-space:nowrap}
+.dw-chip .ic{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
+.dw-chip.sm{padding:3px 9px 3px 4px;font-size:11.5px}
+.dw-chip.sm .ic{width:17px;height:17px;border-radius:6px}
+.dw-chip.selectable{cursor:pointer}
+.dw-chip.selectable:hover{border-color:var(--faint)}
+.dw-chip.active{color:#fff;border-color:transparent}
+.dw-chip[data-cat="work"].active{background:var(--cat-work)}
+.dw-chip[data-cat="personal"].active{background:var(--cat-personal)}
+.dw-chip[data-cat="learning"].active{background:var(--cat-learning)}
+.dw-chip[data-cat="health"].active{background:var(--cat-health)}
+/* on active selectable chip, keep glyph legible */
+.dw-chip.selectable.active .ic{background:rgba(255,255,255,.26)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+
+/* ============================================================ quick composer */
+.dw-composer{background:var(--surface);border:1px solid var(--line);border-radius:22px;
+  box-shadow:var(--shadow);overflow:hidden;transition:.2s}
+.dw-composer.focused{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
+.dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 4px}
+.dw-composer .av{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:var(--surface-3);color:var(--accent);font-weight:800;font-family:var(--font-display);font-size:14px}
+.dw-composer textarea{flex:1;border:none;outline:none;resize:none;background:transparent;
+  font-size:16px;line-height:1.5;color:var(--ink);min-height:26px;padding-top:5px}
+.dw-composer textarea::placeholder{color:var(--faint)}
+.dw-composer .tools{display:flex;align-items:center;gap:8px;padding:8px 14px 14px 62px;flex-wrap:wrap}
+.dw-composer .spacer{flex:1}
+.dw-catpick{display:flex;gap:7px;flex-wrap:wrap}
+
+/* primary button */
+.dw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;
+  border-radius:13px;font-weight:700;font-size:14.5px;background:var(--accent);color:var(--accent-ink);
+  box-shadow:0 6px 16px -8px color-mix(in oklab,var(--accent) 80%,transparent);transition:.16s}
+.dw-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
+.dw-btn:active{transform:scale(.97)}
+.dw-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+.dw-btn.ghost{background:var(--surface-2);color:var(--ink);box-shadow:none}
+.dw-btn.ghost:hover{background:var(--surface-3)}
+.dw-btn.block{width:100%}
+.dw-btn.sm{height:36px;padding:0 14px;font-size:13.5px;border-radius:11px}
+.dw-btn.icon{width:42px;padding:0}
+
+/* ============================================================ date group + timeline */
+.dw-feed{display:flex;flex-direction:column;gap:6px;padding:0 var(--pad)}
+.dw-app[data-device="desktop"] .dw-feed{padding:0}
+.dw-datehead{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;
+  padding:18px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
+.dw-app[data-device="mobile"] .dw-datehead{top:env(safe-area-inset-top);background:linear-gradient(var(--bg) 78%,transparent)}
+.dw-datehead .d-day{font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-0.01em}
+.dw-datehead .d-rel{font-size:12.5px;color:var(--muted);font-weight:600}
+.dw-datehead .d-count{margin-left:auto;font-size:12px;color:var(--muted);font-weight:600;
+  background:var(--surface-2);padding:3px 9px;border-radius:999px}
+.dw-datehead .line{flex:1;height:1px;background:var(--line);margin-left:2px}
+
+/* timeline rail (default card style) */
+.dw-rail{position:relative;padding-left:30px}
+.dw-rail::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:2px;
+  background:linear-gradient(var(--line-2),var(--line-2));border-radius:2px}
+.dw-node{position:relative;margin-bottom:10px}
+.dw-node::before{content:"";position:absolute;left:-26px;top:18px;width:14px;height:14px;border-radius:50%;
+  background:var(--surface);border:3px solid var(--cat-color,var(--accent));z-index:2}
+.dw-node[data-cat="work"]{--cat-color:var(--cat-work)}
+.dw-node[data-cat="personal"]{--cat-color:var(--cat-personal)}
+.dw-node[data-cat="learning"]{--cat-color:var(--cat-learning)}
+.dw-node[data-cat="health"]{--cat-color:var(--cat-health)}
+
+/* entry card */
+.dw-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:15px 16px;
+  box-shadow:var(--shadow-sm);transition:.16s;position:relative;cursor:pointer}
+.dw-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--line-2)}
+.dw-card .c-top{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.dw-card .c-time{font-size:12px;color:var(--muted);font-weight:600}
+.dw-card .c-body{font-size:15px;color:var(--ink);line-height:1.5;text-wrap:pretty}
+.dw-card .c-acts{position:absolute;top:11px;right:11px;display:flex;gap:5px;opacity:0;transition:.15s}
+.dw-card:hover .c-acts{opacity:1}
+.dw-card .c-act{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+  background:var(--surface-2);color:var(--ink-2)}
+.dw-card .c-act:hover{background:var(--surface-3);color:var(--ink)}
+.dw-card .c-fav{color:var(--accent-2)}
+
+/* compact list style (used by EntryCard compact variant) */
+.dw-feed[data-style="compact"] .dw-rail{padding-left:0}
+.dw-feed[data-style="compact"] .dw-rail::before{display:none}
+.dw-feed[data-style="compact"] .dw-node{margin-bottom:0}
+.dw-feed[data-style="compact"] .dw-node::before{display:none}
+.dw-feed[data-style="compact"] .dw-card{border:none;border-radius:0;box-shadow:none;background:transparent;
+  border-bottom:1px solid var(--line);padding:13px 4px;display:flex;gap:12px;align-items:flex-start}
+.dw-feed[data-style="compact"] .dw-card:hover{transform:none;background:var(--surface-2);border-radius:10px;border-bottom-color:transparent}
+.dw-feed[data-style="compact"] .dw-card .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;background:var(--cat-color,var(--accent))}
+.dw-feed[data-style="compact"] .dw-node[data-cat="work"]{--cat-color:var(--cat-work)}
+.dw-feed[data-style="compact"] .dw-node[data-cat="personal"]{--cat-color:var(--cat-personal)}
+.dw-feed[data-style="compact"] .dw-node[data-cat="learning"]{--cat-color:var(--cat-learning)}
+.dw-feed[data-style="compact"] .dw-node[data-cat="health"]{--cat-color:var(--cat-health)}
+.dw-feed[data-style="compact"] .c-top{margin-bottom:3px}
+
+/* load older */
+.dw-loadmore{display:flex;justify-content:center;padding:22px 0 8px}
+.dw-loadmore button{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line-2);font-weight:600;font-size:13.5px;color:var(--ink-2);box-shadow:var(--shadow-sm)}
+.dw-loadmore button:hover{color:var(--ink);border-color:var(--faint)}
+
+/* ============================================================ bottom nav (tabbar) */
+.dw-tabbar{flex:none;display:flex;align-items:center;justify-content:space-around;
+  background:color-mix(in oklab,var(--surface) 88%,transparent);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);padding:8px 8px calc(10px + env(safe-area-inset-bottom));position:relative;z-index:20}
+.dw-tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;border-radius:14px;
+  color:var(--muted);font-size:10.5px;font-weight:700;transition:.15s;letter-spacing:.01em}
+.dw-tab.active{color:var(--accent)}
+.dw-tab:active{transform:scale(.92)}
+.dw-tab .badge{position:absolute}
+
+/* desktop sidebar nav */
+.dw-navitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+  color:var(--ink-2);font-weight:600;font-size:14.5px;transition:.14s;width:100%;text-align:left}
+.dw-navitem:hover{background:var(--surface-2);color:var(--ink)}
+.dw-navitem.active{background:var(--accent-soft);color:var(--accent)}
+.dw-navitem.active svg{color:var(--accent)}
+.dw-navitem .lbl{flex:1}
+.dw-navitem .ct{font-size:12px;color:var(--muted);font-weight:600}
+
+/* ============================================================ FAB */
+.dw-fab{position:absolute;right:18px;bottom:90px;width:58px;height:58px;border-radius:20px;z-index:25;
+  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  box-shadow:0 14px 30px -10px color-mix(in oklab,var(--accent) 85%,transparent);transition:.18s}
+.dw-fab:hover{transform:translateY(-2px) rotate(90deg)}
+.dw-fab:active{transform:scale(.92)}
+.dw-app[data-device="desktop"] .dw-fab{right:30px;bottom:30px}
+
+/* ============================================================ bottom sheet / modal */
+.dw-scrim{position:absolute;inset:0;z-index:40;background:rgba(40,28,16,.42);backdrop-filter:blur(2px);
+  opacity:0;animation:dw-fade .2s forwards;display:flex;flex-direction:column;justify-content:flex-end}
+.dw-app[data-device="desktop"] .dw-scrim{justify-content:center;align-items:center}
+@keyframes dw-fade{to{opacity:1}}
+.dw-sheet{background:var(--surface);border-radius:26px 26px 0 0;padding:8px 18px calc(24px + env(safe-area-inset-bottom));
+  box-shadow:0 -10px 40px -10px rgba(0,0,0,.3);transform:translateY(100%);animation:dw-up .26s cubic-bezier(.2,.9,.25,1) forwards}
+.dw-app[data-device="desktop"] .dw-sheet{border-radius:24px;width:480px;max-width:90%;transform:scale(.96);animation:dw-pop .22s forwards;padding:8px 22px 22px}
+@keyframes dw-up{to{transform:translateY(0)}}
+@keyframes dw-pop{to{transform:scale(1)}}
+.dw-grab{width:38px;height:5px;border-radius:9px;background:var(--line-2);margin:6px auto 8px}
+.dw-sheet h3{font-family:var(--font-display);font-size:20px;font-weight:700;margin:6px 2px 14px}
+
+/* ============================================================ inputs */
+.dw-field{margin-bottom:14px}
+.dw-field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:7px;letter-spacing:.01em}
+.dw-input{width:100%;height:46px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line);
+  padding:0 14px;font-size:15px;outline:none;transition:.15s;color:var(--ink)}
+textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;resize:vertical}
+.dw-input:focus{border-color:color-mix(in oklab,var(--accent) 50%,var(--line));background:var(--surface)}
+.dw-input::placeholder{color:var(--faint)}
+.dw-inputrow{display:flex;align-items:center;gap:10px;height:46px;border-radius:13px;background:var(--surface-2);
+  border:1px solid var(--line);padding:0 14px;transition:.15s}
+.dw-inputrow:focus-within{border-color:color-mix(in oklab,var(--accent) 50%,var(--line));background:var(--surface)}
+.dw-inputrow input{flex:1;border:none;outline:none;background:transparent;font-size:15px;height:100%}
+.dw-inputrow svg{color:var(--muted);flex:none}
+
+/* ============================================================ auth */
+.dw-auth{min-height:100vh;display:flex;flex-direction:column}
+.dw-app[data-device="desktop"] .dw-auth{flex-direction:row}
+.dw-auth-brand{background:linear-gradient(150deg,var(--accent),var(--accent-2));color:#fff;position:relative;overflow:hidden}
+.dw-app[data-device="mobile"] .dw-auth-brand{padding:64px 26px 30px}
+.dw-app[data-device="desktop"] .dw-auth-brand{flex:1;padding:54px;display:flex;flex-direction:column;justify-content:space-between}
+.dw-auth-brand .blob{position:absolute;border-radius:50%;background:rgba(255,255,255,.12);filter:blur(2px)}
+.dw-auth-form{background:var(--bg);flex:1;display:flex;flex-direction:column;justify-content:center}
+.dw-app[data-device="mobile"] .dw-auth-form{padding:26px 22px 30px}
+.dw-app[data-device="desktop"] .dw-auth-form{padding:54px;max-width:460px;margin:0 auto;width:100%}
+.dw-segment{display:flex;background:var(--surface-2);border-radius:13px;padding:4px;margin-bottom:22px}
+.dw-segment button{flex:1;height:38px;border-radius:10px;font-weight:700;font-size:14px;color:var(--muted);transition:.15s}
+.dw-segment button.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.dw-oauth{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:46px;border-radius:13px;
+  background:var(--surface);border:1px solid var(--line-2);font-weight:700;font-size:14.5px;color:var(--ink);transition:.15s}
+.dw-oauth:hover{border-color:var(--faint);background:var(--surface-2)}
+.dw-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:12px;font-weight:600}
+.dw-divider::before,.dw-divider::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* ============================================================ stats / insights */
+.dw-stat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow-sm)}
+.dw-stat .v{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.dw-stat .k{font-size:12px;color:var(--muted);font-weight:600;margin-top:5px}
+.dw-statgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dw-app[data-device="desktop"] .dw-statgrid{grid-template-columns:repeat(4,1fr)}
+.dw-bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:10px}
+.dw-bars .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+.dw-bars .col{width:100%;max-width:30px;border-radius:8px 8px 4px 4px;background:var(--accent-soft);position:relative;transition:.6s cubic-bezier(.2,.9,.2,1);min-height:5px}
+.dw-bars .bar.peak .col{background:linear-gradient(var(--accent),var(--accent-2))}
+.dw-bars .lab{font-size:10.5px;color:var(--muted);font-weight:700}
+.dw-bars .val{font-size:11px;font-weight:700;color:var(--ink-2)}
+.dw-heat{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.dw-heat .cell{aspect-ratio:1;border-radius:6px;background:var(--surface-2)}
+.dw-mix{display:flex;flex-direction:column;gap:11px}
+.dw-mix .m{display:flex;align-items:center;gap:11px}
+.dw-mix .track{flex:1;height:9px;border-radius:9px;background:var(--surface-2);overflow:hidden}
+.dw-mix .fill{height:100%;border-radius:9px;transition:width .7s cubic-bezier(.2,.9,.2,1)}
+.dw-mix .pct{font-size:12.5px;font-weight:700;width:38px;text-align:right;color:var(--ink-2)}
+
+/* nudge banner */
+.dw-nudge{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;
+  background:linear-gradient(100deg,color-mix(in oklab,var(--accent) 12%,var(--surface)),color-mix(in oklab,var(--accent-2) 14%,var(--surface)));
+  border:1px solid color-mix(in oklab,var(--accent) 22%,transparent)}
+.dw-nudge .ico{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:var(--shadow-sm)}
+.dw-nudge .t{font-weight:700;font-size:14px}
+.dw-nudge .s{font-size:12.5px;color:var(--ink-2)}
+
+/* ============================================================ profile */
+.dw-prof-head{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.dw-avatar{width:64px;height:64px;border-radius:22px;flex:none;display:grid;place-items:center;color:#fff;
+  font-family:var(--font-display);font-weight:700;font-size:26px;background:linear-gradient(150deg,var(--accent),var(--accent-2));
+  box-shadow:0 10px 24px -10px color-mix(in oklab,var(--accent) 70%,transparent)}
+.dw-prefcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.dw-prefrow{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.dw-prefrow:last-child{border-bottom:none}
+.dw-prefrow .ico{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--surface-2);color:var(--ink-2);flex:none}
+.dw-prefrow .lbl{flex:1}
+.dw-prefrow .lbl .t{font-weight:600;font-size:14.5px}
+.dw-prefrow .lbl .s{font-size:12px;color:var(--muted)}
+.dw-toggle{width:46px;height:28px;border-radius:999px;background:var(--line-2);position:relative;transition:.2s;flex:none}
+.dw-toggle.on{background:var(--accent)}
+.dw-toggle .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.dw-toggle.on .knob{left:21px}
+.dw-seg3{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:2px}
+.dw-seg3 button{padding:6px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--muted);transition:.14s}
+.dw-seg3 button.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+
+/* ============================================================ onboarding */
+.dw-onb{min-height:100vh;height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+.dw-onb .hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 28px;gap:22px}
+.dw-onb .art{width:200px;height:200px;border-radius:32px;display:grid;place-items:center;position:relative;overflow:hidden}
+.dw-onb h2{font-family:var(--font-display);font-size:27px;font-weight:700;letter-spacing:-.02em;max-width:14ch}
+.dw-onb p{color:var(--ink-2);font-size:15px;max-width:30ch}
+.dw-dots{display:flex;gap:7px;justify-content:center}
+.dw-dots .d{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:.2s}
+.dw-dots .d.on{background:var(--accent);width:22px}
+
+/* empty state */
+.dw-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:40px 28px;gap:16px}
+.dw-empty .ill{width:130px;height:130px;border-radius:34px;display:grid;place-items:center;
+  background:var(--surface-2);color:var(--accent);position:relative;overflow:hidden}
+.dw-empty h3{font-family:var(--font-display);font-size:21px;font-weight:700}
+.dw-empty p{color:var(--muted);font-size:14px;max-width:30ch}
+
+/* ============================================================ misc / footer credit */
+.dw-credit{text-align:center;font-size:11.5px;color:var(--muted);padding:26px 16px 18px;line-height:1.7}
+.dw-credit a{color:var(--accent);text-decoration:none;font-weight:600}
+.dw-section-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 2px 11px}
+
+/* search bar */
+.dw-search{display:flex;align-items:center;gap:10px;height:44px;border-radius:14px;background:var(--surface);
+  border:1px solid var(--line);padding:0 14px;box-shadow:var(--shadow-sm)}
+.dw-search input{flex:1;border:none;outline:none;background:transparent;font-size:14.5px}
+.dw-search svg{color:var(--muted);flex:none}
+
+/* entrance animation */
+@media (prefers-reduced-motion: no-preference){
+  .dw-rise{opacity:0;transform:translateY(10px);animation:dw-rise .5s cubic-bezier(.2,.9,.25,1) forwards}
+  @keyframes dw-rise{to{opacity:1;transform:none}}
+  .dw-pop-in{animation:dw-popin .4s cubic-bezier(.2,1.3,.4,1) forwards}
+  @keyframes dw-popin{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+}
+
+/* confetti / save burst */
+.dw-burst{position:absolute;pointer-events:none;z-index:50}
+.dw-confetti{position:absolute;width:9px;height:9px;border-radius:2px;animation:dw-conf 900ms ease-out forwards}
+@keyframes dw-conf{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--dr))}}
+
+/* toast */
+.dw-toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;z-index:60;
+  background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:13px;font-size:13.5px;font-weight:600;
+  box-shadow:0 12px 30px -10px rgba(0,0,0,.4);display:flex;align-items:center;gap:9px;
+  animation:dw-toast-in .3s cubic-bezier(.2,.9,.25,1)}
+.dw-app[data-device="desktop"] .dw-toast{bottom:30px}
+@keyframes dw-toast-in{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
