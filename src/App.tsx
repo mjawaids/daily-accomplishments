@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
-import { LandingPage } from './components/LandingPage';
 import { Auth } from './components/dw/Auth';
 import { Onboarding } from './components/dw/Onboarding';
 import { WinsProvider } from './components/dw/WinsProvider';
@@ -15,7 +14,7 @@ import Pricing from './pages/Pricing';
 import CheckoutSuccess from './pages/CheckoutSuccess';
 import type { User } from '@supabase/supabase-js';
 
-type AppState = 'landing' | 'auth' | 'app';
+type AppState = 'auth' | 'app';
 type AuthMode = 'signin' | 'signup';
 
 const ONBOARDED_KEY = 'dw_onboarded';
@@ -23,7 +22,7 @@ const ONBOARDED_KEY = 'dw_onboarded';
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [appState, setAppState] = useState<AppState>('landing');
+  const [appState, setAppState] = useState<AppState>('auth');
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [shouldOpenCheckout, setShouldOpenCheckout] = useState(false);
@@ -33,7 +32,7 @@ function App() {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) setAppState('app');
+      setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
     });
 
@@ -42,8 +41,7 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) setAppState('app');
-      else setAppState('landing');
+      setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
     });
 
@@ -51,12 +49,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // If URL contains ?auth=signin or ?auth=signup, open auth view
+    // ?auth=signin or ?auth=signup selects which tab the auth screen opens on
     const params = new URLSearchParams(location.search);
     const authParam = params.get('auth');
     if (authParam === 'signin' || authParam === 'signup') {
       setAuthMode(authParam as AuthMode);
-      setAppState('auth');
     }
   }, [location.search]);
 
@@ -84,11 +81,6 @@ function App() {
     })();
   }, [user, shouldOpenCheckout]);
 
-  const handleShowAuth = (mode: AuthMode) => {
-    setAuthMode(mode);
-    setAppState('auth');
-  };
-
   const handleAuthSuccess = (mode: AuthMode) => {
     setAppState('app');
     trackAuthEvent('signin');
@@ -112,17 +104,7 @@ function App() {
 
   // Track page views when app state changes
   useEffect(() => {
-    switch (appState) {
-      case 'landing':
-        trackPageView('Landing Page');
-        break;
-      case 'auth':
-        trackPageView('Authentication');
-        break;
-      case 'app':
-        trackPageView('Daily Wins App');
-        break;
-    }
+    trackPageView(appState === 'app' ? 'Daily Wins App' : 'Authentication');
   }, [appState]);
 
   if (loading) {
@@ -133,10 +115,8 @@ function App() {
     );
   }
 
+  // Unauthenticated users go straight to the sign in / register screen.
   const renderHome = () => {
-    if (appState === 'auth') {
-      return <Auth onAuthSuccess={handleAuthSuccess} onBack={() => setAppState('landing')} initialMode={authMode} />;
-    }
     if (user && pendingOnboarding) {
       return <Onboarding onDone={finishOnboarding} />;
     }
@@ -147,7 +127,7 @@ function App() {
         </WinsProvider>
       );
     }
-    return <LandingPage onShowAuth={handleShowAuth} />;
+    return <Auth onAuthSuccess={handleAuthSuccess} initialMode={authMode} />;
   };
 
   return (
@@ -158,7 +138,7 @@ function App() {
       <Route path="/terms" element={<TermsConditions />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/checkout-success" element={<CheckoutSuccess />} />
-      <Route path="*" element={<LandingPage onShowAuth={handleShowAuth} />} />
+      <Route path="*" element={renderHome()} />
     </Routes>
   );
 }

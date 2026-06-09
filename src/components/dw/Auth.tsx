@@ -12,7 +12,7 @@ type Mode = 'signin' | 'signup';
 
 interface AuthProps {
   onAuthSuccess: (mode: Mode) => void;
-  onBack: () => void;
+  onBack?: () => void;
   initialMode?: Mode;
 }
 
@@ -122,15 +122,11 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
 
         <form className="dw-auth-form" onSubmit={submit}>
           <div style={{ width: '100%' }}>
-            <button
-              type="button"
-              className="dw-iconbtn"
-              style={{ marginBottom: 18 }}
-              onClick={onBack}
-              title="Back"
-            >
-              <Icon name="chevL" size={20} />
-            </button>
+            {onBack && (
+              <button type="button" className="dw-iconbtn" style={{ marginBottom: 18 }} onClick={onBack} title="Back">
+                <Icon name="chevL" size={20} />
+              </button>
+            )}
             <h2 className="dw-display" style={{ fontSize: 25, fontWeight: 700, marginBottom: 6 }}>
               {isSignup ? 'Create your account' : 'Welcome back'}
             </h2>
