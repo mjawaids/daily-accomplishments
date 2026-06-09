@@ -113,12 +113,13 @@ class OfflineManager {
   async addAccomplishment(accomplishment: Omit<AccomplishmentInsert, 'id'>): Promise<Accomplishment> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    
+
     const newAccomplishment: PendingAccomplishment = {
       ...accomplishment,
       id,
-      created_at: now,
-      updated_at: now,
+      // honor a back-dated created_at if the caller supplied one
+      created_at: accomplishment.created_at || now,
+      updated_at: accomplishment.updated_at || now,
       synced: false
     };
 

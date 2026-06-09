@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { LandingPage } from './components/LandingPage';
-import { AuthForm } from './components/AuthForm';
-import { AccomplishmentApp } from './components/AccomplishmentApp';
+import { Auth } from './components/dw/Auth';
+import { Onboarding } from './components/dw/Onboarding';
+import { WinsProvider } from './components/dw/WinsProvider';
+import { AppShell } from './components/dw/AppShell';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import RefundPolicy from './pages/RefundPolicy';
 import TermsConditions from './pages/TermsConditions';
@@ -16,20 +18,22 @@ import type { User } from '@supabase/supabase-js';
 type AppState = 'landing' | 'auth' | 'app';
 type AuthMode = 'signin' | 'signup';
 
+const ONBOARDED_KEY = 'dw_onboarded';
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [appState, setAppState] = useState<AppState>('landing');
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
-  const location = useLocation();
+  const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [shouldOpenCheckout, setShouldOpenCheckout] = useState(false);
+  const location = useLocation();
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        setAppState('app');
-      }
+      if (session?.user) setAppState('app');
       setLoading(false);
     });
 
@@ -38,11 +42,8 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        setAppState('app');
-      } else {
-        setAppState('landing');
-      }
+      if (session?.user) setAppState('app');
+      else setAppState('landing');
       setLoading(false);
     });
 
@@ -59,33 +60,55 @@ function App() {
     }
   }, [location.search]);
 
+  // Preserve the Paddle "Pro" checkout flow: ?checkout=pro after auth.
+  useEffect(() => {
+    if (!user || !shouldOpenCheckout) return;
+    (async () => {
+      try {
+        const env = import.meta.env as unknown as Record<string, string | undefined>;
+        const priceId = env.VITE_PADDLE_PRICE_ID;
+        if (priceId) {
+          const options = {
+            customer: { email: user.email },
+            passthrough: JSON.stringify({ userId: user.id }),
+            success_url: `${window.location.origin}/checkout-success`,
+          } as Record<string, unknown>;
+          const { openCheckout } = await import('./lib/paddle');
+          await openCheckout(priceId, options);
+        }
+      } catch (err) {
+        console.error('[Checkout] Error opening checkout:', err);
+      } finally {
+        setShouldOpenCheckout(false);
+      }
+    })();
+  }, [user, shouldOpenCheckout]);
+
   const handleShowAuth = (mode: AuthMode) => {
     setAuthMode(mode);
     setAppState('auth');
   };
 
-  const handleAuthSuccess = () => {
-    // User state will be updated by the auth state change listener
+  const handleAuthSuccess = (mode: AuthMode) => {
     setAppState('app');
     trackAuthEvent('signin');
-    
-    // If user clicked Pro and was redirected to auth with ?checkout=pro, trigger checkout
-    const params = new URLSearchParams(location.search);
-    if (params.get('checkout') === 'pro') {
-      setShouldOpenCheckout(true);
+    if (mode === 'signup' && !localStorage.getItem(ONBOARDED_KEY)) {
+      setPendingOnboarding(true);
     }
+    const params = new URLSearchParams(location.search);
+    if (params.get('checkout') === 'pro') setShouldOpenCheckout(true);
   };
 
   const handleSignOut = () => {
-    setUser(null);
-    setAppState('landing');
     trackAuthEvent('signout');
+    supabase.auth.signOut();
+    // onAuthStateChange resets user + appState
   };
 
-  const handleBackToLanding = () => {
-    setAppState('landing');
+  const finishOnboarding = () => {
+    localStorage.setItem(ONBOARDED_KEY, '1');
+    setPendingOnboarding(false);
   };
-  // Policy and pricing pages are now handled by routes
 
   // Track page views when app state changes
   useEffect(() => {
@@ -110,34 +133,31 @@ function App() {
     );
   }
 
+  const renderHome = () => {
+    if (appState === 'auth') {
+      return <Auth onAuthSuccess={handleAuthSuccess} onBack={() => setAppState('landing')} initialMode={authMode} />;
+    }
+    if (user && pendingOnboarding) {
+      return <Onboarding onDone={finishOnboarding} />;
+    }
+    if (user) {
+      return (
+        <WinsProvider userEmail={user.email || ''} onSignOut={handleSignOut}>
+          <AppShell />
+        </WinsProvider>
+      );
+    }
+    return <LandingPage onShowAuth={handleShowAuth} />;
+  };
+
   return (
     <Routes>
-      <Route 
-        path="/" 
-        element={
-          appState === 'auth' ? (
-            <AuthForm 
-              onAuthSuccess={handleAuthSuccess} 
-              onBack={handleBackToLanding}
-              initialMode={authMode}
-            />
-          ) : user ? (
-            <AccomplishmentApp 
-              onSignOut={handleSignOut} 
-              userEmail={user.email || ''}
-              shouldOpenCheckout={shouldOpenCheckout}
-              onCheckoutComplete={() => setShouldOpenCheckout(false)}
-            />
-          ) : (
-            <LandingPage onShowAuth={handleShowAuth} />
-          )
-        }
-      />
+      <Route path="/" element={renderHome()} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/refund" element={<RefundPolicy />} />
       <Route path="/terms" element={<TermsConditions />} />
       <Route path="/pricing" element={<Pricing />} />
-  <Route path="/checkout-success" element={<CheckoutSuccess />} />
+      <Route path="/checkout-success" element={<CheckoutSuccess />} />
       <Route path="*" element={<LandingPage onShowAuth={handleShowAuth} />} />
     </Routes>
   );
