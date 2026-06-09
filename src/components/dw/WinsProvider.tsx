@@ -167,9 +167,18 @@ export function WinsProvider({ userEmail, onSignOut, children }: WinsProviderPro
 
   // Online/offline handling + background sync.
   useEffect(() => {
-    const handleOnline = () => {
+    const handleOnline = async () => {
       trackConnectivityEvent('online');
-      offlineManager.syncPendingOperations().then(() => loadEntries());
+      // Fire a 'sync' event only when there were offline changes to flush.
+      let hadPending = false;
+      try {
+        hadPending = (await offlineManager.getSyncStatus()).pendingCount > 0;
+      } catch {
+        /* ignore */
+      }
+      await offlineManager.syncPendingOperations();
+      if (hadPending) trackConnectivityEvent('sync');
+      loadEntries();
     };
     const handleOffline = () => trackConnectivityEvent('offline');
     window.addEventListener('online', handleOnline);
