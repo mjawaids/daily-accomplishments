@@ -1,224 +1,195 @@
-# Daily Wins - Track Your Accomplishments 🏆
+# DailyWins — Record What You Actually Got Done 🌅
 
-A beautiful, production-ready Progressive Web App (PWA) for tracking daily accomplishments with offline functionality and real-time sync.
-
-![Daily Wins Preview](https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=800&h=400&fit=crop&crop=center)
+A calm, celebratory Progressive Web App for logging your daily wins — part achievement tracker, part journal, part solo stand-up. Built offline-first with real-time sync, a warm hand-crafted design system, and full PWA installability.
 
 ## ✨ Features
 
-### 🎯 Core Functionality
-- **Track Accomplishments**: Add, edit, and delete daily wins across multiple categories
-- **Category Organization**: Work, Personal, Learning, and Health categories with color coding
-- **Timeline View**: Beautiful chronological display of your achievements
-- **Pagination**: Efficient browsing through your accomplishment history
-
-### 📱 Progressive Web App
-- **Offline First**: Works completely offline with local data storage
-- **Background Sync**: Automatically syncs when connection is restored
-- **Mobile Optimized**: Responsive design that works perfectly on all devices
-- **Installable**: Can be installed as a native app on mobile and desktop
-- **Push Notifications**: Ready for future notification features
-
-### 🔐 Authentication & Security
-- **Secure Authentication**: Email/password authentication via Supabase
-- **Row Level Security**: Your data is protected and private
-- **Real-time Sync**: Changes sync across all your devices instantly
+### 🎯 Core
+- **Log your wins** — Capture what you got done in your own words, across four categories: Work, Personal, Learning, and Health.
+- **Timeline** — A day-grouped feed of your wins on a colored timeline rail, with a sticky "Today / Yesterday / weekday" date header and "Load older" paging.
+- **Quick composer** — An inline composer on the timeline; a full sheet (with category picker and **back-dating**) for editing or logging a missed win.
+- **Streaks & nudges** — A streak counter and a contextual nudge banner that encourages you to keep your run alive.
+- **Insights** — Stat cards (streak, this week, total, best day), a last-7-days bar chart, a category-mix breakdown, and a 12-week activity heatmap — computed over your full history.
+- **Profile** — Edit your name/email, switch theme, toggle notification preferences, and review per-category counts.
 
 ### 🎨 Design & UX
-- **Modern UI**: Clean, Apple-inspired design with smooth animations
-- **Dark/Light Themes**: Adapts to system preferences
-- **Micro-interactions**: Thoughtful hover states and transitions
-- **Accessibility**: Built with accessibility best practices
+- **Warm, custom design system** — Hand-built design tokens (`src/styles/dailywins.css`) scoped under `.dw-app`, themed via data attributes. Brand mark is a rising sun + checkmark in a sunrise gradient.
+- **Light / Dark / Auto** — Theme preference with an `Auto` mode that follows your device.
+- **Responsive shell** — A sidebar layout on desktop and a bottom tab bar + composer on mobile, driven from a single responsive component.
+- **Typography** — Bricolage Grotesque (display) + Hanken Grotesque (body).
+- **Delight** — Confetti on a new win, toasts, and subtle entrance animations (respecting `prefers-reduced-motion`).
+
+### 📱 Progressive Web App
+- **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop.
+- **Offline-first** — Works fully offline using IndexedDB; changes apply optimistically.
+- **Background sync** — Pending offline changes sync automatically when you reconnect.
+
+### 🔐 Authentication & Data
+- **Email/password + Google** — Supabase Auth with email/password and **Continue with Google** (OAuth). Same-email accounts are linked automatically by Supabase.
+- **Google profile** — Uses your Google display name and avatar when signed in with Google.
+- **Row Level Security** — Every win is private to its owner, enforced at the database level.
+- **Real-time-ready** — Data is keyed to your user and synced through Supabase.
+
+### 📈 Analytics & Billing
+- **Google Analytics** (optional) — Page views, auth events, win add/edit/delete, connectivity, and the PWA install funnel.
+- **Pro plan via Paddle** (optional) — A pricing page and Paddle checkout flow, with subscription state stored in a `profiles` table and a Netlify webhook function.
+
+## 🏗️ Tech Stack
+
+- **React 18** + **TypeScript** + **Vite**
+- **Custom CSS design system** (`dailywins.css`) for the app UI; **Tailwind CSS** for marketing/policy pages
+- **Supabase** — Auth (email/password + Google OAuth) and PostgreSQL with Row Level Security
+- **IndexedDB** + **Service Worker** — offline storage, caching, and background sync
+- **react-router-dom** — marketing/policy routes
+- **Paddle** + **Netlify Functions** — subscriptions (optional)
+- **Google Analytics 4** — product analytics (optional)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+ and npm
-- A Supabase account (free tier available)
+- A free [Supabase](https://supabase.com) project
 
-### 1. Clone the Repository
+### 1. Install
 ```bash
-git clone https://github.com/mjawaids/daily-wins.git
-cd daily-wins
+git clone https://github.com/mjawaids/daily-accomplishments.git
+cd daily-accomplishments
 npm install
 ```
 
-### 2. Set Up Supabase
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to Settings → API to get your project URL and anon key
-3. Copy `.env.example` to `.env` and add your credentials:
+### 2. Configure environment
+Copy the example env and fill in your values:
 ```bash
 cp .env.example .env
 ```
 
-### 3. Database Setup
-The database schema is automatically created via Supabase migrations. The app includes:
-- `accomplishments` table with RLS policies
-- User authentication via Supabase Auth
-- Automatic timestamps and user associations
+| Variable | Required | Purpose |
+|---|---|---|
+| `VITE_SUPABASE_URL` | ✅ | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase anon/public key |
+| `VITE_GA_TRACKING_ID` | optional | Google Analytics 4 measurement ID |
+| `VITE_PADDLE_CLIENT_TOKEN` | optional | Paddle.js client token (Pro plan) |
+| `VITE_PADDLE_PRICE_ID` | optional | Paddle price ID for the Pro plan |
+| `VITE_PADDLE_SANDBOX` | optional | `true` to use Paddle sandbox |
+| `PADDLE_WEBHOOK_SECRET` | optional | Server-side Paddle webhook secret (Netlify) |
+| `SUPABASE_SERVICE_ROLE_KEY` | optional | Server-side key for Netlify functions |
 
-### 4. Run the Development Server
+> Server-side secrets (no `VITE_` prefix) must be set in your host's dashboard, never in client code.
+
+### 3. Database
+Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments` and `profiles` tables with RLS policies and triggers.
+
+### 4. Enable Google sign-in (optional)
+1. Create an OAuth client in Google Cloud Console (Web application) with redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`.
+2. In Supabase → Authentication → Providers → Google, paste the Client ID/Secret.
+3. Add your app origins (e.g. `http://localhost:5173` and production URL) under Authentication → URL Configuration.
+
+### 5. Run
 ```bash
-npm run dev
+npm run dev      # start the dev server (http://localhost:5173)
+npm run build    # production build
+npm run preview  # preview the production build
+npm run lint     # run ESLint
 ```
-
-Visit `http://localhost:5173` to see your app in action!
-
-## 🏗️ Tech Stack
-
-### Frontend
-- **React 18** - Modern React with hooks and concurrent features
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling with custom design system
-- **Vite** - Lightning-fast build tool and dev server
-- **Lucide React** - Beautiful, consistent icons
-
-### Backend & Database
-- **Supabase** - Backend-as-a-Service with PostgreSQL
-- **Row Level Security** - Database-level security policies
-- **Real-time subscriptions** - Live data updates
-
-### PWA & Offline
-- **Service Worker** - Custom SW for caching and background sync
-- **IndexedDB** - Local storage for offline functionality
-- **Background Sync** - Automatic sync when connection returns
-- **Web App Manifest** - Native app-like installation
 
 ## 📁 Project Structure
 
 ```
-daily-wins/
+daily-accomplishments/
 ├── public/
-│   ├── manifest.json          # PWA manifest
-│   ├── sw.js                  # Service worker
-│   └── icons/                 # App icons
+│   ├── manifest.json              # PWA manifest
+│   ├── sw.js                      # Service worker (cache + background sync)
+│   ├── favicon.svg / .ico         # Brand favicons (all devices)
+│   ├── favicon-16x16/32x32.png
+│   ├── apple-touch-icon.png       # iOS home-screen icon
+│   └── icon-192/512.png           # PWA install icons
 ├── src/
 │   ├── components/
-│   │   ├── AccomplishmentApp.tsx  # Main app component
-│   │   ├── AuthForm.tsx           # Authentication form
-│   │   └── OfflineIndicator.tsx   # Offline status indicator
+│   │   ├── dw/                    # DailyWins app UI
+│   │   │   ├── AppShell.tsx       # Responsive shell (sidebar / tab bar / FAB)
+│   │   │   ├── WinsProvider.tsx   # State, Supabase + offline wiring, toast/confetti
+│   │   │   ├── components.tsx     # Entry card, composer, form, chips, avatar
+│   │   │   ├── screens.tsx        # Timeline + Insights
+│   │   │   ├── screens2.tsx       # Profile + Empty
+│   │   │   ├── Auth.tsx           # Email/password + Google auth
+│   │   │   ├── Onboarding.tsx     # 3-step intro (after signup)
+│   │   │   ├── icons.tsx          # Icon set + brand mark + category glyphs
+│   │   │   └── useDevice.ts       # Responsive + theme hooks
+│   │   ├── InstallPrompt.tsx      # PWA install prompt
+│   │   └── OfflineIndicator.tsx
 │   ├── lib/
-│   │   ├── supabase.ts           # Supabase client & types
-│   │   └── offline.ts            # Offline manager with IndexedDB
-│   ├── App.tsx                   # Root component
-│   └── main.tsx                  # App entry point
-├── supabase/
-│   └── migrations/               # Database migrations
-└── netlify.toml                  # Netlify deployment config
+│   │   ├── supabase.ts            # Supabase client + types
+│   │   ├── offline.ts             # IndexedDB offline manager + sync
+│   │   ├── winsData.ts            # Date/stat helpers (streak, charts, grouping)
+│   │   ├── analytics.ts           # Google Analytics helpers
+│   │   └── paddle.ts              # Paddle checkout (optional)
+│   ├── pages/                     # Pricing + policy routes
+│   ├── styles/dailywins.css       # Design tokens + component styles
+│   ├── App.tsx                    # Routing + auth/onboarding flow
+│   └── main.tsx                   # Entry point
+├── supabase/migrations/           # Database schema
+└── netlify/functions/             # Paddle webhook (optional)
 ```
 
-## 🔧 Development
+## 🗄️ Database Schema
 
-### Available Scripts
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run lint     # Run ESLint
-```
-
-### Environment Variables
-Create a `.env` file with your Supabase credentials:
-```env
-VITE_SUPABASE_URL=your-supabase-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-VITE_GA_TRACKING_ID=your-google-analytics-id
-```
-
-### Database Schema
-The app uses a single `accomplishments` table:
 ```sql
+-- Your wins
 accomplishments (
   id uuid PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id),
   text text NOT NULL,
-  category text CHECK (category IN ('work', 'personal', 'learning', 'health')),
+  category text CHECK (category IN ('work','personal','learning','health')),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 )
+
+-- Subscription state (auto-created on signup)
+profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id),
+  subscription_status text,   -- free | active | cancelled | past_due
+  subscription_plan text,     -- free | pro
+  paddle_customer_id text,
+  paddle_transaction_id text,
+  ...
+)
 ```
+Both tables enforce Row Level Security so users only ever see their own rows.
 
-## 🚀 Deployment
+## 🔄 Offline Behavior
 
-### Netlify (Recommended)
-1. Connect your GitHub repository to Netlify
-2. Set environment variables in Netlify dashboard
-3. Deploy automatically on every push
-
-### Manual Deployment
-```bash
-npm run build
-# Upload dist/ folder to your hosting provider
-```
-
-### Environment Variables for Production
-Set these in your hosting provider's dashboard:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `VITE_GA_TRACKING_ID` (optional)
-
-## 📱 PWA Installation
-
-### Mobile (iOS/Android)
-1. Open the app in your mobile browser
-2. Tap the "Add to Home Screen" option
-3. The app will install like a native app
-
-### Desktop
-1. Look for the install icon in your browser's address bar
-2. Click to install the app
-3. Access from your desktop like any other application
-
-## 🔄 Offline Functionality
-
-The app works completely offline with:
-- **Local Storage**: All data cached in IndexedDB
-- **Optimistic Updates**: Changes appear instantly
-- **Background Sync**: Automatic sync when online
-- **Conflict Resolution**: Smart handling of sync conflicts
+- All wins are cached in **IndexedDB**; adds/edits/deletes apply optimistically.
+- When offline, operations are queued and replayed on reconnect via **background sync**.
+- Insights and the timeline are computed from your full local history, so the app stays useful with no connection.
 
 ## 🎨 Customization
 
-### Colors & Themes
-Modify the color scheme in `tailwind.config.js` and component files. The app uses a consistent design system with:
-- Primary: Blue (`#2563eb`)
-- Categories: Blue, Green, Purple, Pink
-- Neutrals: Slate color palette
+- **Theme & tokens** — Edit `src/styles/dailywins.css`. Accent palettes and category colors are defined as CSS custom properties (category accents use OKLCH).
+- **Categories** — Defined in `src/lib/winsData.ts` (`CATS`) with matching glyphs in `src/components/dw/icons.tsx`; the database `category` check constraint must be updated to add new ones.
 
-### Categories
-Add new categories by:
-1. Updating the database constraint
-2. Adding colors in `categoryColors` object
-3. Adding icons in `categoryIcons` object
+## 🚀 Deployment
+
+Deploys cleanly to **Netlify** (`netlify.toml` builds `dist/` and serves the SPA). Set the environment variables in your host's dashboard, including any optional GA/Paddle keys and server-side secrets.
+
+```bash
+npm run build   # outputs dist/
+```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+1. Fork and branch: `git checkout -b feature/your-feature`
+2. Commit your changes
+3. Open a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
-## 🙏 Acknowledgments
+## 🙏 Credits
 
-- Built with [Bolt.new](https://bolt.new) - AI-powered full-stack development
-- Icons by [Lucide](https://lucide.dev)
-- Hosted on [Netlify](https://netlify.com)
-- Backend by [Supabase](https://supabase.com)
-
-## 📞 Support
-
-If you have any questions or need help:
-1. Check the [Issues](https://github.com/mjawaids/daily-accomplishments/issues) page
-2. Create a new issue with detailed information
-3. Join our community discussions
+Developed with ❤️ by [Jawaid](https://jawaid.dev) · Powered by 🚀 [Ibexoft](https://ibexoft.com)
+Backend by [Supabase](https://supabase.com) · Hosted on [Netlify](https://netlify.com)
 
 ---
 
-**Built with ❤️ using modern web technologies**
-
-*Start tracking your daily wins today and build momentum towards your goals!*
+*Record what you actually got done — and watch your momentum build.*
