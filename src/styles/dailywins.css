@@ -151,8 +151,9 @@
   box-shadow:var(--shadow);overflow:hidden;transition:.2s}
 .dw-composer.focused{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
 .dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 4px}
-.dw-composer .av{width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;
-  background:var(--surface-3);color:var(--accent);font-weight:800;font-family:var(--font-display);font-size:14px}
+.av{border-radius:50%;flex:none;display:grid;place-items:center;overflow:hidden;
+  background:var(--surface-3);color:var(--accent);font-weight:800;font-family:var(--font-display)}
+.dw-composer .av{width:34px;height:34px;font-size:14px}
 .dw-composer textarea{flex:1;border:none;outline:none;resize:none;background:transparent;
   font-size:16px;line-height:1.5;color:var(--ink);min-height:26px;padding-top:5px}
 .dw-composer textarea::placeholder{color:var(--faint)}
