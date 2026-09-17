@@ -71,20 +71,72 @@ cp .env.example .env
 | `VITE_PADDLE_CLIENT_TOKEN` | optional | Paddle.js client token (Pro plan) |
 | `VITE_PADDLE_PRICE_ID` | optional | Paddle price ID for the Pro plan |
 | `VITE_PADDLE_SANDBOX` | optional | `true` to use Paddle sandbox |
+| `VITE_ONESIGNAL_APP_ID` | optional | OneSignal App ID — public by design (push reminders) |
 | `PADDLE_WEBHOOK_SECRET` | optional | Server-side Paddle webhook secret (Netlify) |
 | `SUPABASE_SERVICE_ROLE_KEY` | optional | Server-side key for Netlify functions |
+| `ONESIGNAL_REST_API_KEY` | optional | **Secret.** Server-side OneSignal key (Netlify) |
 
 > Server-side secrets (no `VITE_` prefix) must be set in your host's dashboard, never in client code.
 
 ### 3. Database
-Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments` and `profiles` tables with RLS policies and triggers.
+Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments`, `profiles`, `user_settings` and `notification_log` tables with RLS policies and triggers.
 
 ### 4. Enable Google sign-in (optional)
 1. Create an OAuth client in Google Cloud Console (Web application) with redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`.
 2. In Supabase → Authentication → Providers → Google, paste the Client ID/Secret.
 3. Add your app origins (e.g. `http://localhost:5173` and production URL) under Authentication → URL Configuration.
 
-### 5. Run
+### 5. Push reminders (optional)
+
+Daily Wins can send a push notification at each user's chosen local time
+(default 8:00 PM) reminding them to log a win. Delivery is handled by OneSignal;
+the schedule is owned by `netlify/functions/evening-reminder.ts`, which runs
+every 15 minutes and works out who is due in their own timezone.
+
+**In the OneSignal dashboard:**
+
+1. Create an app, then add the **Web** platform and choose the **Custom Code**
+   integration type. (The service-worker path is set in `src/lib/onesignal.ts`;
+   do *not* also fill in the dashboard's service-worker path fields — setting
+   both conflicts.)
+2. Fill in Site Details:
+   - **Site Name** — `Daily Wins`. This doubles as the default notification title.
+   - **Site URL** — your exact production origin, e.g. `https://dailywins.app`.
+     It must match the origin the SDK initialises on, `www` included or excluded
+     exactly as you serve it. A mismatch makes subscription fail silently.
+   - **Default Icon URL** — a square icon on your domain, e.g.
+     `https://<site>/icon-512.png`. OneSignal asks for 256×256; supply one at
+     that size if it rejects the 512.
+   - **Auto Resubscribe** — on.
+3. Create a **second app** for local development with Site URL
+   `http://localhost:5173`, and enable *"Treat HTTP localhost as HTTPS for
+   testing"*. The production app's Site URL check rejects localhost.
+4. From **Settings → Keys & IDs**, copy the **App ID** into
+   `VITE_ONESIGNAL_APP_ID` and the **REST API Key** into `ONESIGNAL_REST_API_KEY`.
+
+**Keys:** the App ID is public by design and ships in the client bundle. The
+REST API Key is a secret — set it only in the Netlify dashboard, never with a
+`VITE_` prefix, and never commit it.
+
+**Service worker:** `public/onesignal/OneSignalSDKWorker.js` is served from this
+origin alongside the app's own `public/sw.js`. After the first deploy, confirm
+it is served as JavaScript rather than swallowed by the SPA redirect:
+
+```bash
+curl -I https://<site>/onesignal/OneSignalSDKWorker.js   # expect application/javascript
+```
+
+**Platform limits worth knowing:**
+
+- HTTPS with a valid certificate is required (localhost excepted).
+- **iOS/iPadOS needs 16.4+ *and* the app added to the Home Screen** — web push
+  does not work in an iOS Safari tab. The settings toggle detects this and
+  explains it. Android and desktop browsers subscribe directly.
+- The reminder payload is deliberately generic and carries no personal data,
+  because the Web SDK has no Identity Verification. See the migration header and
+  `src/lib/onesignal.ts` for the reasoning.
+
+### 6. Run
 ```bash
 npm run dev      # start the dev server (http://localhost:5173)
 npm run build    # production build

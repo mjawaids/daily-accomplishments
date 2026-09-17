@@ -14,6 +14,22 @@ import { trackAccomplishmentEvent, trackConnectivityEvent } from '../../lib/anal
 import { toWin } from '../../lib/winsData';
 import type { Category, Win } from '../../lib/winsData';
 import type { Database } from '../../lib/supabase';
+import {
+  browserTimezone,
+  ensureUserSettings,
+  updateUserSettings,
+} from '../../lib/userSettings';
+import type { UserSettings, UserSettingsPatch } from '../../lib/userSettings';
+import {
+  disablePush,
+  enablePush,
+  getPushState,
+  initOneSignal,
+  isOptedIn,
+  loginPushAlias,
+  onPushStateChange,
+} from '../../lib/onesignal';
+import type { PushState } from '../../lib/onesignal';
 import { Icon } from './icons';
 import type { IconName } from './icons';
 
@@ -22,13 +38,14 @@ type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
 export type Screen = 'timeline' | 'insights' | 'profile';
 export type Theme = 'light' | 'dark' | 'sync';
 
+/* Device-scoped preferences, kept in the `dw_prefs` localStorage blob.
+   Notification settings deliberately do NOT live here: the reminder sender has
+   to read them server-side, so they live in the user_settings table instead
+   (see src/lib/userSettings.ts). */
 export interface Prefs {
   name: string;
   email: string;
   theme: Theme;
-  notifications: boolean;
-  eveningReminder: boolean;
-  weekdigest: boolean;
 }
 
 interface ToastState {
@@ -60,6 +77,15 @@ export interface WinsContextValue {
   clearAll: () => Promise<void>;
   onSignOut: () => void;
   avatarUrl?: string;
+  /** Server-side notification settings. Null while loading or if the row could
+      not be read; the Notifications UI renders disabled in that case. */
+  settings: UserSettings | null;
+  settingsLoading: boolean;
+  pushState: PushState;
+  /** True while a permission prompt / opt-in round trip is in flight. */
+  pushBusy: boolean;
+  setPushEnabled: (on: boolean) => Promise<void>;
+  updateSettings: (patch: UserSettingsPatch) => Promise<void>;
 }
 
 const WinsContext = createContext<WinsContextValue | null>(null);
@@ -76,9 +102,6 @@ function loadPrefs(email: string, displayName?: string): Prefs {
     name: displayName || (email ? email.split('@')[0] : 'there'),
     email,
     theme: 'light',
-    notifications: true,
-    eveningReminder: true,
-    weekdigest: false,
   };
   try {
     const raw = localStorage.getItem(PREFS_KEY);
@@ -91,6 +114,7 @@ function loadPrefs(email: string, displayName?: string): Prefs {
 }
 
 interface WinsProviderProps {
+  userId: string;
   userEmail: string;
   userName?: string;
   avatarUrl?: string;
@@ -98,7 +122,7 @@ interface WinsProviderProps {
   children: React.ReactNode;
 }
 
-export function WinsProvider({ userEmail, userName, avatarUrl, onSignOut, children }: WinsProviderProps) {
+export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut, children }: WinsProviderProps) {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<Win[]>([]);
   const [screen, setScreenRaw] = useState<Screen>('timeline');
@@ -108,6 +132,10 @@ export function WinsProvider({ userEmail, userName, avatarUrl, onSignOut, childr
   const [toast, setToast] = useState<ToastState | null>(null);
   const [celebrate, setCelebrate] = useState(0);
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs(userEmail, userName));
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [pushState, setPushState] = useState<PushState>(() => getPushState());
+  const [pushBusy, setPushBusy] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -191,6 +219,91 @@ export function WinsProvider({ userEmail, userName, avatarUrl, onSignOut, childr
       window.removeEventListener('offline', handleOffline);
     };
   }, [loadEntries]);
+
+  // ---- notification settings ----------------------------------------------
+  // Loads (creating on first run) the server-side settings row, keeps the stored
+  // IANA timezone in step with this device, and reconciles the stored
+  // push_enabled flag against what the browser actually believes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const loaded = await ensureUserSettings(userId);
+      if (cancelled) return;
+      if (!loaded) {
+        setSettingsLoading(false);
+        return;
+      }
+
+      let current = loaded;
+      const tz = browserTimezone();
+      if (current.timezone !== tz) {
+        // Written only when it actually changed, not on every mount.
+        const moved = await updateUserSettings(userId, { timezone: tz });
+        if (moved) current = moved;
+      }
+      if (cancelled) return;
+      setSettings(current);
+      setSettingsLoading(false);
+
+      if (current.push_enabled) {
+        const ready = await initOneSignal();
+        if (ready && !cancelled) {
+          await loginPushAlias(current.push_alias);
+          // The permission may have been revoked in browser settings, or site
+          // data cleared, since push_enabled was stored. Without this the
+          // toggle would keep claiming to be on.
+          if (isOptedIn() === false) {
+            const reconciled = await updateUserSettings(userId, { push_enabled: false });
+            if (reconciled && !cancelled) setSettings(reconciled);
+          }
+        }
+      }
+      if (!cancelled) setPushState(getPushState());
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => onPushStateChange(setPushState), []);
+
+  const updateSettings = useCallback(
+    async (patch: UserSettingsPatch) => {
+      const next = await updateUserSettings(userId, patch);
+      if (next) setSettings(next);
+    },
+    [userId]
+  );
+
+  const setPushEnabled = useCallback(
+    async (on: boolean) => {
+      if (!settings || pushBusy) return;
+      setPushBusy(true);
+      try {
+        if (on) {
+          const state = await enablePush();
+          setPushState(state);
+          if (state === 'granted-on') {
+            await loginPushAlias(settings.push_alias);
+            const next = await updateUserSettings(userId, { push_enabled: true });
+            if (next) setSettings(next);
+            showToast('Reminders on', 'bell');
+          } else if (state === 'denied') {
+            showToast('Notifications are blocked in your browser settings', 'bell');
+          }
+        } else {
+          await disablePush();
+          setPushState(getPushState());
+          const next = await updateUserSettings(userId, { push_enabled: false });
+          if (next) setSettings(next);
+          showToast('Reminders off', 'bell');
+        }
+      } finally {
+        setPushBusy(false);
+      }
+    },
+    [settings, pushBusy, userId, showToast]
+  );
 
   const startEdit = useCallback((entry: Win) => {
     setEditing(entry);
@@ -298,6 +411,12 @@ export function WinsProvider({ userEmail, userName, avatarUrl, onSignOut, childr
     clearAll,
     onSignOut,
     avatarUrl,
+    settings,
+    settingsLoading,
+    pushState,
+    pushBusy,
+    setPushEnabled,
+    updateSettings,
   };
 
   return <WinsContext.Provider value={value}>{children}</WinsContext.Provider>;

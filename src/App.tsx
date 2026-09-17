@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
+import { clearPushAliasIfStale, logoutPush } from './lib/onesignal';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { Auth } from './components/dw/Auth';
 import { Onboarding } from './components/dw/Onboarding';
@@ -34,6 +35,9 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
+      // Shared-device safety net: drop any push alias left behind by someone who
+      // closed the tab without signing out.
+      if (!session?.user) void clearPushAliasIfStale();
     });
 
     // Listen for auth changes
@@ -91,8 +95,11 @@ function App() {
     if (params.get('checkout') === 'pro') setShouldOpenCheckout(true);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     trackAuthEvent('signout');
+    // Unalias this browser from the user's OneSignal push_alias BEFORE dropping
+    // the session, or the device keeps receiving their reminders.
+    await logoutPush();
     supabase.auth.signOut();
     // onAuthStateChange resets user + appState
   };
@@ -126,7 +133,13 @@ function App() {
       const userName = meta.full_name || meta.name;
       const avatarUrl = meta.avatar_url || meta.picture;
       return (
-        <WinsProvider userEmail={user.email || ''} userName={userName} avatarUrl={avatarUrl} onSignOut={handleSignOut}>
+        <WinsProvider
+          userId={user.id}
+          userEmail={user.email || ''}
+          userName={userName}
+          avatarUrl={avatarUrl}
+          onSignOut={handleSignOut}
+        >
           <AppShell />
         </WinsProvider>
       );

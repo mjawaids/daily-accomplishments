@@ -140,23 +140,8 @@ async function removePendingAccomplishment(id) {
   return Promise.resolve();
 }
 
-// Handle push notifications (for future use)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    const options = {
-      body: data.body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      vibrate: [100, 50, 100],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: data.primaryKey
-      }
-    };
-
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
-  }
-});
+// Push notifications are NOT handled here. The push subscription belongs to the
+// OneSignal service worker registered at /onesignal/ (see public/onesignal/
+// OneSignalSDKWorker.js), and push events are routed to the registration that
+// owns the subscription, not by scope. A handler here could never fire, and a
+// second notification code path on one origin is a bug waiting to happen.

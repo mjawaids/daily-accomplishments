@@ -6,3 +6,20 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# The OneSignal service worker must be served from this origin as real
+# JavaScript. The SPA catch-all above is not forced, so Netlify's static-file
+# match wins for a file that actually exists -- but verify after deploying:
+#   curl -I https://<site>/onesignal/OneSignalSDKWorker.js
+# If it ever returns text/html, registration fails silently and push never works.
+[[headers]]
+  for = "/onesignal/*"
+  [headers.values]
+    Content-Type           = "application/javascript; charset=utf-8"
+    Cache-Control          = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/onesignal/"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
