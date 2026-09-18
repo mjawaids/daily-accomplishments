@@ -36,8 +36,6 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
-      // Shared-device safety net: drop any push alias left behind by someone who
-      // closed the tab without signing out.
       if (!session?.user) void clearPushAliasIfStale();
     });
 
@@ -48,6 +46,16 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
+      // Shared-device safety net. Must run here too, not only on the initial
+      // getSession: plenty of sign-outs never reach handleSignOut — a session
+      // expiring, a token refresh failing, or Supabase broadcasting a sign-out
+      // from another tab. If the alias survived that, the next person to sign in
+      // on this browser keeps receiving the previous user's reminders, and they
+      // would not even reassign it: WinsProvider only calls loginPushAlias when
+      // their own push_enabled is true.
+      // Flag-guarded, so this is a no-op (and loads nothing) on a browser that
+      // was never aliased.
+      if (!session?.user) void clearPushAliasIfStale();
     });
 
     return () => subscription.unsubscribe();
