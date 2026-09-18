@@ -14,11 +14,7 @@ import { trackAccomplishmentEvent, trackConnectivityEvent } from '../../lib/anal
 import { toWin } from '../../lib/winsData';
 import type { Category, Win } from '../../lib/winsData';
 import type { Database } from '../../lib/supabase';
-import {
-  browserTimezone,
-  ensureUserSettings,
-  updateUserSettings,
-} from '../../lib/userSettings';
+import { ensureUserSettings, updateUserSettings } from '../../lib/userSettings';
 import type { UserSettings, UserSettingsPatch } from '../../lib/userSettings';
 import {
   disablePush,
@@ -234,13 +230,14 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
         return;
       }
 
-      let current = loaded;
-      const tz = browserTimezone();
-      if (current.timezone !== tz) {
-        // Written only when it actually changed, not on every mount.
-        const moved = await updateUserSettings(userId, { timezone: tz });
-        if (moved) current = moved;
-      }
+      // NB: the detected zone is deliberately NOT written back here. timezone is
+      // account-wide and the sender applies it to every device, so auto-adopting
+      // whatever this browser reports lets one machine silently reschedule
+      // everything — open the app on a laptop left on America/New_York and a
+      // Europe/Berlin user's 20:00 reminder moves to 02:00 on all their devices.
+      // It is seeded once in ensureUserSettings() and changed only when the user
+      // says so, from the Profile screen.
+      const current = loaded;
       if (cancelled) return;
       setSettings(current);
       setSettingsLoading(false);

@@ -7,7 +7,7 @@ import type { Theme } from './WinsProvider';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
 import { CATEGORY_KEYS, CATS, computeStreak } from '../../lib/winsData';
-import { formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
+import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
 
 interface ToggleRowProps {
@@ -83,6 +83,12 @@ export function Profile({ device }: { device: Device }) {
   // cannot receive them — otherwise a user whose only device is blocked has no
   // way to switch the account setting off at all.
   const pushToggleDisabled = settingsLoading || !settings || (!pushOn && !canEnableHere);
+
+  // The saved zone is account-wide and is what the sender uses, so it is never
+  // adopted automatically from whatever browser happens to be open — offered
+  // here instead, for the user to accept.
+  const detectedTz = browserTimezone();
+  const tzDiffers = !!settings && settings.timezone !== detectedTz;
 
   let pushSub: string;
   if (pushState === 'unsupported') {
@@ -237,14 +243,27 @@ export function Profile({ device }: { device: Device }) {
           />
         </div>
 
-        {/* timezone (read-only) */}
+        {/* timezone */}
         <div className="dw-prefrow">
           <div className="ico">
             <Icon name="device" size={18} />
           </div>
           <div className="lbl">
             <div className="t">Time zone</div>
-            <div className="s">Detected automatically — updates when you open the app</div>
+            <div className="s">
+              {tzDiffers
+                ? `This device is in ${detectedTz} — reminders still use ${settings?.timezone}`
+                : 'Reminders are sent in this time zone'}
+            </div>
+            {tzDiffers && (
+              <button
+                className="dw-btn ghost sm"
+                style={{ marginTop: 8 }}
+                onClick={() => updateSettings({ timezone: detectedTz })}
+              >
+                Switch to {detectedTz}
+              </button>
+            )}
           </div>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
             {settings?.timezone ?? '—'}
