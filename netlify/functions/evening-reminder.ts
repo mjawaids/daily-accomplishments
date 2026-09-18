@@ -23,7 +23,9 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ONESIGNAL_APP_ID = process.env.VITE_ONESIGNAL_APP_ID;
 const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
-const SITE_URL = process.env.URL || 'https://dailywins.app';
+// Netlify sets URL to the project's primary URL at runtime; the fallback is
+// only for local invokes.
+const SITE_URL = process.env.URL || 'https://dailywins.ibexoft.com';
 
 /** Netlify's hard cap is 30s. Stop starting new work with headroom to spare —
     anything left claimed is released and picked up by the next run, which is

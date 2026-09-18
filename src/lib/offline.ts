@@ -155,12 +155,6 @@ class OfflineManager {
     const store = transaction.objectStore('pending_accomplishments');
     await store.add(newAccomplishment);
 
-    // Register for background sync
-    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-accomplishments');
-    }
-
     return newAccomplishment as Accomplishment;
   }
 
@@ -199,12 +193,6 @@ class OfflineManager {
 
     // Update cached version optimistically
     await this.updateCachedAccomplishment(id, text, createdAt);
-
-    // Register for background sync
-    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-accomplishments');
-    }
   }
 
   // Delete accomplishment
@@ -236,12 +224,6 @@ class OfflineManager {
 
     // Remove from cache optimistically
     await this.removeCachedAccomplishment(id);
-
-    // Register for background sync
-    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register('sync-accomplishments');
-    }
   }
 
   // Sync pending operations

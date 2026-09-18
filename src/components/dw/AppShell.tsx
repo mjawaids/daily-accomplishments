@@ -11,6 +11,7 @@ import { Avatar, EntryForm } from './components';
 import { Timeline, Insights } from './screens';
 import { Profile } from './screens2';
 import { InstallPrompt } from '../InstallPrompt';
+import { PushPrompt } from './PushPrompt';
 
 // ---- desktop sidebar ----
 function Sidebar() {
@@ -137,6 +138,7 @@ export function AppShell() {
       <Toast />
       <Confetti />
       <InstallPrompt />
+      <PushPrompt />
     </div>
   );
 }

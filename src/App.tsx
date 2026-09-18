@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { clearPushAliasIfStale, logoutPush } from './lib/onesignal';
+import { UpdateBanner } from './components/UpdateBanner';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { Auth } from './components/dw/Auth';
 import { Onboarding } from './components/dw/Onboarding';
@@ -148,15 +149,18 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={renderHome()} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/refund" element={<RefundPolicy />} />
-      <Route path="/terms" element={<TermsConditions />} />
-      <Route path="/pricing" element={<Pricing />} />
-      <Route path="/checkout-success" element={<CheckoutSuccess />} />
-      <Route path="*" element={renderHome()} />
-    </Routes>
+    <>
+      <UpdateBanner />
+      <Routes>
+        <Route path="/" element={renderHome()} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/refund" element={<RefundPolicy />} />
+        <Route path="/terms" element={<TermsConditions />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/checkout-success" element={<CheckoutSuccess />} />
+        <Route path="*" element={renderHome()} />
+      </Routes>
+    </>
   );
 }
 
