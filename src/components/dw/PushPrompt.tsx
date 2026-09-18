@@ -45,14 +45,20 @@ export function PushPrompt() {
     !dismissed &&
     !settingsLoading &&
     !!settings &&
-    !settings.push_enabled &&
-    // Only when the browser has never been asked. 'denied' cannot be re-prompted,
-    // 'granted-off' means they deliberately turned it off, and iOS needs the app
-    // installed to the Home Screen before push works at all.
+    // Only when this browser has never been asked. That covers both a new user
+    // and someone who already enabled reminders on another device -- the second
+    // device still needs its own permission, and push_enabled being true
+    // account-wide does not mean this browser is subscribed.
+    // 'denied' cannot be re-prompted, 'granted-off' means they deliberately
+    // turned it off, and iOS needs a Home Screen install before push works.
     pushState === 'default' &&
     !isIosNeedsInstall();
 
   if (!eligible) return null;
+
+  // Reads differently depending on whether this is a first-time opt-in or an
+  // additional device joining an account that already wants reminders.
+  const alreadyOnElsewhere = settings.push_enabled;
 
   return (
     <div
@@ -94,15 +100,18 @@ export function PushPrompt() {
           <Icon name="bell" size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Want an evening nudge?</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>
+            {alreadyOnElsewhere ? 'Add reminders on this device' : 'Want an evening nudge?'}
+          </div>
           <div style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '2px 0 10px' }}>
-            We'll remind you at 8:00 PM to log a win. Change the time or turn it off any time in
-            Profile.
+            {alreadyOnElsewhere
+              ? 'Your reminders are on, but this device is not set up to receive them yet.'
+              : "We'll remind you at 8:00 PM to log a win. Change the time or turn it off any time in Profile."}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="dw-btn sm" disabled={pushBusy} onClick={() => setPushEnabled(true)}>
               <Icon name="bell" size={15} sw={2.2} />
-              {pushBusy ? 'Enabling…' : 'Remind me'}
+              {pushBusy ? 'Enabling…' : alreadyOnElsewhere ? 'Enable here' : 'Remind me'}
             </button>
             <button className="dw-btn ghost sm" onClick={handleDismiss}>
               Not now

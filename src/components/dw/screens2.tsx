@@ -69,24 +69,39 @@ export function Profile({ device }: { device: Device }) {
     setEditing(false);
   };
 
-  // Push availability is decided by the browser first, then by our stored flag.
+  /* Two different things are in play here and the UI has to keep them apart:
+     push_enabled is account-wide (one user_settings row per user, and it is what
+     the sender gates on), while permission and subscription are per-browser. The
+     toggle shows the account setting; the sub-line says whether THIS browser is
+     actually going to receive anything. */
   const pushOn = !!settings?.push_enabled;
   const reminderOn = pushOn && !!settings?.evening_reminder_enabled;
   const iosNeedsInstall = pushState !== 'unsupported' && isIosNeedsInstall();
-  const pushToggleDisabled =
-    settingsLoading ||
-    !settings ||
-    pushState === 'unsupported' ||
-    pushState === 'denied' ||
-    iosNeedsInstall;
-  const pushSub =
-    pushState === 'unsupported'
-      ? 'Not supported in this browser'
-      : iosNeedsInstall
-        ? 'Add Daily Wins to your Home Screen first'
-        : pushState === 'denied'
-          ? 'Blocked — enable notifications in your browser settings'
-          : 'Daily reminders on every device you allow';
+  const canEnableHere = pushState !== 'unsupported' && pushState !== 'denied' && !iosNeedsInstall;
+  const deviceSubscribed = pushState === 'granted-on';
+  // Turning reminders OFF must always be possible, even from a browser that
+  // cannot receive them — otherwise a user whose only device is blocked has no
+  // way to switch the account setting off at all.
+  const pushToggleDisabled = settingsLoading || !settings || (!pushOn && !canEnableHere);
+
+  let pushSub: string;
+  if (pushState === 'unsupported') {
+    pushSub = pushOn
+      ? "On for your account — this browser can't receive push"
+      : 'Not supported in this browser';
+  } else if (iosNeedsInstall) {
+    pushSub = pushOn
+      ? 'On for your account — add to your Home Screen to receive here'
+      : 'Add Daily Wins to your Home Screen first';
+  } else if (pushState === 'denied') {
+    pushSub = pushOn
+      ? 'On for your account — blocked in this browser'
+      : 'Blocked — enable notifications in your browser settings';
+  } else if (pushOn && !deviceSubscribed) {
+    pushSub = 'On for your account — not enabled on this device yet';
+  } else {
+    pushSub = 'Daily reminders on every device you allow';
+  }
 
   const themeOptions: Array<[Theme, string]> = [
     ['light', 'Light'],

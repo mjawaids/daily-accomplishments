@@ -25,9 +25,9 @@ import {
   enablePush,
   getPushState,
   initOneSignal,
-  isOptedIn,
   loginPushAlias,
   onPushStateChange,
+  resubscribeIfPermitted,
 } from '../../lib/onesignal';
 import type { PushState } from '../../lib/onesignal';
 import { Icon } from './icons';
@@ -249,13 +249,12 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
         const ready = await initOneSignal();
         if (ready && !cancelled) {
           await loginPushAlias(current.push_alias);
-          // The permission may have been revoked in browser settings, or site
-          // data cleared, since push_enabled was stored. Without this the
-          // toggle would keep claiming to be on.
-          if (isOptedIn() === false) {
-            const reconciled = await updateUserSettings(userId, { push_enabled: false });
-            if (reconciled && !cancelled) setSettings(reconciled);
-          }
+          // push_enabled is account-wide (one user_settings row per user) while
+          // subscription state is per-browser, so this must NOT write the flag
+          // from what this device happens to believe: a second device that never
+          // opted in would switch reminders off for the phone that did.
+          // Instead, let this device join when it already has permission.
+          await resubscribeIfPermitted();
         }
       }
       if (!cancelled) setPushState(getPushState());

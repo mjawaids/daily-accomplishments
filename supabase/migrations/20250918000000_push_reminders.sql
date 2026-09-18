@@ -178,15 +178,28 @@ begin
     select c.user_id, c.last_due::date as local_date
     from candidates c
     where c.local_now - c.last_due < make_interval(mins => p_grace_minutes)
-    -- Cannot starve anyone: the ledger removes claimed users from the candidate
-    -- set, so any tail beyond p_limit is served by the next run 15 minutes later,
-    -- still inside the grace window.
+      -- This anti-join MUST come before the limit. Claiming a user does not
+      -- remove them from `candidates` (which reads only user_settings), so
+      -- without it the same first p_limit users are re-selected on every run,
+      -- ON CONFLICT DO NOTHING returns nothing, and everyone past the cap is
+      -- never served -- silently, and only once the product is popular enough
+      -- to exceed p_limit in a single window.
+      -- Served by the UNIQUE (user_id, kind, local_date) index.
+      and not exists (
+        select 1
+        from public.notification_log nl
+        where nl.user_id = c.user_id
+          and nl.kind = 'evening_reminder'
+          and nl.local_date = c.last_due::date
+      )
     order by c.user_id
     limit p_limit
   ),
   claimed as (
     insert into public.notification_log (user_id, kind, local_date, status)
     select d.user_id, 'evening_reminder', d.local_date, 'claimed' from due d
+    -- Guards only the race between the anti-join above and this insert; the
+    -- steady-state filtering is the anti-join's job.
     on conflict (user_id, kind, local_date) do nothing
     returning notification_log.id, notification_log.user_id, notification_log.local_date
   )

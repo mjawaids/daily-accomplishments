@@ -192,8 +192,27 @@ export async function disablePush(): Promise<void> {
   }
 }
 
-/** True when the SDK believes this device is subscribed. Used to reconcile the
-    stored push_enabled flag against reality on mount. */
+/** True when the SDK believes this device is subscribed. Per-BROWSER state — it
+    must never be used to derive the account-wide user_settings.push_enabled
+    flag, since another device may well be subscribed. */
 export function isOptedIn(): boolean | undefined {
   return sdk?.User.PushSubscription.optedIn;
+}
+
+/* Subscribes this browser when the account already wants reminders but this
+   particular browser is not subscribed — a second device, or one whose site data
+   was cleared. This is what actually makes the feature cross-device: the new
+   device starts receiving without the user doing anything.
+
+   Gated on permission already being 'granted', which is what makes it safe to do
+   unprompted: optIn() only shows the permission prompt when there is no valid
+   token, so with permission in hand it cannot ambush anyone. */
+export async function resubscribeIfPermitted(): Promise<void> {
+  if (!isPushSupported() || Notification.permission !== 'granted') return;
+  if (!sdk || sdk.User.PushSubscription.optedIn !== false) return;
+  try {
+    await sdk.User.PushSubscription.optIn();
+  } catch (err) {
+    console.error('[onesignal] silent resubscribe failed:', err);
+  }
 }
