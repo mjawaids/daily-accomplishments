@@ -7,6 +7,8 @@ import type { Theme } from './WinsProvider';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
 import { CATEGORY_KEYS, CATS, computeStreak } from '../../lib/winsData';
+import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
+import { isIosNeedsInstall } from '../../lib/onesignal';
 
 interface ToggleRowProps {
   icon: Parameters<typeof Icon>[0]['name'];
@@ -14,11 +16,15 @@ interface ToggleRowProps {
   sub?: string;
   on: boolean;
   onToggle: () => void;
+  /** Renders the row inert — e.g. push unsupported, or blocked by the browser. */
+  disabled?: boolean;
+  /** A permission prompt / opt-in round trip is in flight. */
+  busy?: boolean;
 }
 
-function ToggleRow({ icon, title, sub, on, onToggle }: ToggleRowProps) {
+function ToggleRow({ icon, title, sub, on, onToggle, disabled, busy }: ToggleRowProps) {
   return (
-    <div className="dw-prefrow">
+    <div className="dw-prefrow" style={disabled ? { opacity: 0.45 } : undefined}>
       <div className="ico">
         <Icon name={icon} size={18} />
       </div>
@@ -26,7 +32,12 @@ function ToggleRow({ icon, title, sub, on, onToggle }: ToggleRowProps) {
         <div className="t">{title}</div>
         {sub && <div className="s">{sub}</div>}
       </div>
-      <button className={'dw-toggle' + (on ? ' on' : '')} onClick={onToggle}>
+      <button
+        className={'dw-toggle' + (on ? ' on' : '')}
+        onClick={onToggle}
+        disabled={disabled || busy}
+        style={busy ? { opacity: 0.6 } : undefined}
+      >
         <span className="knob" />
       </button>
     </div>
@@ -34,7 +45,21 @@ function ToggleRow({ icon, title, sub, on, onToggle }: ToggleRowProps) {
 }
 
 export function Profile({ device }: { device: Device }) {
-  const { prefs, setPrefs, setScreen, entries, clearAll, onSignOut, avatarUrl } = useDW();
+  const {
+    prefs,
+    setPrefs,
+    setScreen,
+    entries,
+    clearAll,
+    onSignOut,
+    avatarUrl,
+    settings,
+    settingsLoading,
+    pushState,
+    pushBusy,
+    setPushEnabled,
+    updateSettings,
+  } = useDW();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(prefs.name);
   const [email, setEmail] = useState(prefs.email);
@@ -43,6 +68,46 @@ export function Profile({ device }: { device: Device }) {
     setPrefs((p) => ({ ...p, name, email }));
     setEditing(false);
   };
+
+  /* Two different things are in play here and the UI has to keep them apart:
+     push_enabled is account-wide (one user_settings row per user, and it is what
+     the sender gates on), while permission and subscription are per-browser. The
+     toggle shows the account setting; the sub-line says whether THIS browser is
+     actually going to receive anything. */
+  const pushOn = !!settings?.push_enabled;
+  const reminderOn = pushOn && !!settings?.evening_reminder_enabled;
+  const iosNeedsInstall = pushState !== 'unsupported' && isIosNeedsInstall();
+  const canEnableHere = pushState !== 'unsupported' && pushState !== 'denied' && !iosNeedsInstall;
+  const deviceSubscribed = pushState === 'granted-on';
+  // Turning reminders OFF must always be possible, even from a browser that
+  // cannot receive them — otherwise a user whose only device is blocked has no
+  // way to switch the account setting off at all.
+  const pushToggleDisabled = settingsLoading || !settings || (!pushOn && !canEnableHere);
+
+  // The saved zone is account-wide and is what the sender uses, so it is never
+  // adopted automatically from whatever browser happens to be open — offered
+  // here instead, for the user to accept.
+  const detectedTz = browserTimezone();
+  const tzDiffers = !!settings && settings.timezone !== detectedTz;
+
+  let pushSub: string;
+  if (pushState === 'unsupported') {
+    pushSub = pushOn
+      ? "On for your account — this browser can't receive push"
+      : 'Not supported in this browser';
+  } else if (iosNeedsInstall) {
+    pushSub = pushOn
+      ? 'On for your account — add to your Home Screen to receive here'
+      : 'Add Daily Wins to your Home Screen first';
+  } else if (pushState === 'denied') {
+    pushSub = pushOn
+      ? 'On for your account — blocked in this browser'
+      : 'Blocked — enable notifications in your browser settings';
+  } else if (pushOn && !deviceSubscribed) {
+    pushSub = 'On for your account — not enabled on this device yet';
+  } else {
+    pushSub = 'Daily reminders on every device you allow';
+  }
 
   const themeOptions: Array<[Theme, string]> = [
     ['light', 'Light'],
@@ -132,24 +197,100 @@ export function Profile({ device }: { device: Device }) {
         <ToggleRow
           icon="bell"
           title="Push notifications"
-          sub="Reminders & streak alerts"
-          on={prefs.notifications}
-          onToggle={() => setPrefs((p) => ({ ...p, notifications: !p.notifications }))}
+          sub={pushSub}
+          on={settings?.push_enabled ?? false}
+          onToggle={() => setPushEnabled(!(settings?.push_enabled ?? false))}
+          disabled={pushToggleDisabled}
+          busy={pushBusy}
         />
         <ToggleRow
           icon="clock"
           title="Evening reminder"
-          sub="Nudge me at 8:00 PM to log a win"
-          on={prefs.eveningReminder}
-          onToggle={() => setPrefs((p) => ({ ...p, eveningReminder: !p.eveningReminder }))}
+          sub={
+            settings
+              ? `Nudge me at ${formatReminderTime(settings.reminder_local_time)} to log a win`
+              : 'Nudge me to log a win'
+          }
+          on={settings?.evening_reminder_enabled ?? false}
+          onToggle={() =>
+            updateSettings({ evening_reminder_enabled: !(settings?.evening_reminder_enabled ?? false) })
+          }
+          disabled={!pushOn}
         />
-        <ToggleRow
-          icon="mail"
-          title="Weekly digest"
-          sub="A Sunday recap of your wins"
-          on={prefs.weekdigest}
-          onToggle={() => setPrefs((p) => ({ ...p, weekdigest: !p.weekdigest }))}
-        />
+
+        {/* reminder time */}
+        <div className="dw-prefrow" style={!reminderOn ? { opacity: 0.45 } : undefined}>
+          <div className="ico">
+            <Icon name="clock" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Reminder time</div>
+            <div className="s">Your local time, in 15-minute steps</div>
+          </div>
+          <input
+            type="time"
+            step={900}
+            className="dw-input"
+            style={{ height: 40, width: 'auto' }}
+            disabled={!reminderOn}
+            value={settings ? toInputTime(settings.reminder_local_time) : '20:00'}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              // The column CHECK only accepts quarter hours, and browsers still
+              // allow arbitrary typed values despite step.
+              updateSettings({ reminder_local_time: roundToQuarterHour(e.target.value) });
+            }}
+          />
+        </div>
+
+        {/* timezone */}
+        <div className="dw-prefrow">
+          <div className="ico">
+            <Icon name="device" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Time zone</div>
+            <div className="s">
+              {tzDiffers
+                ? `This device is in ${detectedTz} — reminders still use ${settings?.timezone}`
+                : 'Reminders are sent in this time zone'}
+            </div>
+            {tzDiffers && (
+              <button
+                className="dw-btn ghost sm"
+                style={{ marginTop: 8 }}
+                onClick={() => updateSettings({ timezone: detectedTz })}
+              >
+                Switch to {detectedTz}
+              </button>
+            )}
+          </div>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+            {settings?.timezone ?? '—'}
+          </span>
+        </div>
+
+        <div className="dw-prefrow" style={{ opacity: 0.7 }}>
+          <div className="ico">
+            <Icon name="mail" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Weekly digest</div>
+            <div className="s">A Sunday recap of your wins</div>
+          </div>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'var(--accent)',
+              background: 'var(--accent-soft)',
+              padding: '3px 9px',
+              borderRadius: 999,
+            }}
+          >
+            SOON
+          </span>
+        </div>
       </div>
 
       {/* categories */}

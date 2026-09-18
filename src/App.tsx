@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import { supabase } from './lib/supabase';
+import { clearPushAliasIfStale, logoutPush } from './lib/onesignal';
+import { UpdateBanner } from './components/UpdateBanner';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { Auth } from './components/dw/Auth';
 import { Onboarding } from './components/dw/Onboarding';
@@ -34,6 +36,7 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
+      if (!session?.user) void clearPushAliasIfStale();
     });
 
     // Listen for auth changes
@@ -43,6 +46,16 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
+      // Shared-device safety net. Must run here too, not only on the initial
+      // getSession: plenty of sign-outs never reach handleSignOut — a session
+      // expiring, a token refresh failing, or Supabase broadcasting a sign-out
+      // from another tab. If the alias survived that, the next person to sign in
+      // on this browser keeps receiving the previous user's reminders, and they
+      // would not even reassign it: WinsProvider only calls loginPushAlias when
+      // their own push_enabled is true.
+      // Flag-guarded, so this is a no-op (and loads nothing) on a browser that
+      // was never aliased.
+      if (!session?.user) void clearPushAliasIfStale();
     });
 
     return () => subscription.unsubscribe();
@@ -91,8 +104,11 @@ function App() {
     if (params.get('checkout') === 'pro') setShouldOpenCheckout(true);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     trackAuthEvent('signout');
+    // Unalias this browser from the user's OneSignal push_alias BEFORE dropping
+    // the session, or the device keeps receiving their reminders.
+    await logoutPush();
     supabase.auth.signOut();
     // onAuthStateChange resets user + appState
   };
@@ -126,7 +142,13 @@ function App() {
       const userName = meta.full_name || meta.name;
       const avatarUrl = meta.avatar_url || meta.picture;
       return (
-        <WinsProvider userEmail={user.email || ''} userName={userName} avatarUrl={avatarUrl} onSignOut={handleSignOut}>
+        <WinsProvider
+          userId={user.id}
+          userEmail={user.email || ''}
+          userName={userName}
+          avatarUrl={avatarUrl}
+          onSignOut={handleSignOut}
+        >
           <AppShell />
         </WinsProvider>
       );
@@ -135,15 +157,18 @@ function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={renderHome()} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/refund" element={<RefundPolicy />} />
-      <Route path="/terms" element={<TermsConditions />} />
-      <Route path="/pricing" element={<Pricing />} />
-      <Route path="/checkout-success" element={<CheckoutSuccess />} />
-      <Route path="*" element={renderHome()} />
-    </Routes>
+    <>
+      <UpdateBanner />
+      <Routes>
+        <Route path="/" element={renderHome()} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/refund" element={<RefundPolicy />} />
+        <Route path="/terms" element={<TermsConditions />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/checkout-success" element={<CheckoutSuccess />} />
+        <Route path="*" element={renderHome()} />
+      </Routes>
+    </>
   );
 }
 

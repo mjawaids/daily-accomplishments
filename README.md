@@ -71,20 +71,118 @@ cp .env.example .env
 | `VITE_PADDLE_CLIENT_TOKEN` | optional | Paddle.js client token (Pro plan) |
 | `VITE_PADDLE_PRICE_ID` | optional | Paddle price ID for the Pro plan |
 | `VITE_PADDLE_SANDBOX` | optional | `true` to use Paddle sandbox |
+| `VITE_ONESIGNAL_APP_ID` | optional | OneSignal App ID — public by design (push reminders) |
 | `PADDLE_WEBHOOK_SECRET` | optional | Server-side Paddle webhook secret (Netlify) |
-| `SUPABASE_SERVICE_ROLE_KEY` | optional | Server-side key for Netlify functions |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ for functions | Server-side key for Netlify functions |
+| `ONESIGNAL_REST_API_KEY` | optional | **Secret.** Server-side OneSignal key (Netlify) |
+
+Node 22 is pinned in `.nvmrc` — `@supabase/supabase-js` declares `engines: node >=22`.
 
 > Server-side secrets (no `VITE_` prefix) must be set in your host's dashboard, never in client code.
 
 ### 3. Database
-Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments` and `profiles` tables with RLS policies and triggers.
+Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments`, `profiles`, `user_settings` and `notification_log` tables with RLS policies and triggers.
 
 ### 4. Enable Google sign-in (optional)
 1. Create an OAuth client in Google Cloud Console (Web application) with redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`.
 2. In Supabase → Authentication → Providers → Google, paste the Client ID/Secret.
 3. Add your app origins (e.g. `http://localhost:5173` and production URL) under Authentication → URL Configuration.
 
-### 5. Run
+### 5. Push reminders (optional)
+
+Daily Wins can send a push notification at each user's chosen local time
+(default 8:00 PM) reminding them to log a win. Delivery is handled by OneSignal;
+the schedule is owned by `netlify/functions/evening-reminder.ts`, which runs
+every 15 minutes and works out who is due in their own timezone.
+
+**In the OneSignal dashboard:**
+
+1. Create an app, then add the **Web** platform and choose the **Custom Code**
+   integration type. (The service-worker path is set in `src/lib/onesignal.ts`;
+   do *not* also fill in the dashboard's service-worker path fields — setting
+   both conflicts.)
+2. Fill in Site Details:
+   - **Site Name** — `Daily Wins`. This doubles as the default notification title.
+   - **Site URL** — your exact production origin, e.g. `https://dailywins.app`.
+     It must match the origin the SDK initialises on, `www` included or excluded
+     exactly as you serve it. A mismatch makes subscription fail silently.
+   - **Default Icon URL** — a square icon on your domain, e.g.
+     `https://<site>/icon-512.png`. OneSignal asks for 256×256; supply one at
+     that size if it rejects the 512.
+   - **Auto Resubscribe** — on.
+3. Create a **second app** for local development with Site URL
+   `http://localhost:5173`, and enable *"Treat HTTP localhost as HTTPS for
+   testing"*. The production app's Site URL check rejects localhost.
+4. From **Settings → Keys & IDs**, copy the **App ID** into
+   `VITE_ONESIGNAL_APP_ID` and the **REST API Key** into `ONESIGNAL_REST_API_KEY`.
+
+**Keys:** the App ID is public by design and ships in the client bundle. The
+REST API Key is a secret — set it only in the Netlify dashboard, never with a
+`VITE_` prefix, and never commit it.
+
+**Service worker:** `public/onesignal/OneSignalSDKWorker.js` is served from this
+origin alongside the app's own `public/sw.js`. After the first deploy, confirm
+it is served as JavaScript rather than swallowed by the SPA redirect:
+
+```bash
+curl -I https://<site>/onesignal/OneSignalSDKWorker.js   # expect application/javascript
+```
+
+**Platform limits worth knowing:**
+
+- HTTPS with a valid certificate is required (localhost excepted).
+- **iOS/iPadOS needs 16.4+ *and* the app added to the Home Screen** — web push
+  does not work in an iOS Safari tab. The settings toggle detects this and
+  explains it. Android and desktop browsers subscribe directly.
+- The reminder payload is deliberately generic and carries no personal data,
+  because the Web SDK has no Identity Verification. See the migration header and
+  `src/lib/onesignal.ts` for the reasoning.
+
+### 6. Deploying
+
+**Netlify environment variables.** Server-side values must be set in the Netlify dashboard
+(Site settings → Environment variables), not in `.env`:
+
+- `SUPABASE_SERVICE_ROLE_KEY` — required by *both* `evening-reminder` and `paddle-webhook`. Neither
+  function works without it.
+- `ONESIGNAL_REST_API_KEY` — mark as secret, functions scope.
+- `VITE_ONESIGNAL_APP_ID` — needs the `builds` scope so it is inlined at build time.
+
+Scheduled functions run **only on published production deploys**, never on deploy previews. After
+deploying, check that `evening-reminder` is listed under Functions with its schedule, and that the
+OneSignal worker is served as JavaScript rather than swallowed by the SPA redirect:
+
+```bash
+curl -I https://<site>/onesignal/OneSignalSDKWorker.js   # expect application/javascript
+```
+
+**Supabase.** Apply every file in `supabase/migrations/` — check which have actually been applied
+rather than assuming. Nothing else is needed on the Supabase side: the reminder scheduler lives on
+Netlify, so there is **no pg_cron, no pg_net and no Edge Functions** to configure.
+
+### 7. Updates and caching
+
+The service worker is generated by `vite-plugin-pwa` (Workbox) — see the `VitePWA` block in
+`vite.config.ts`. This matters for correctness, not just offline support:
+
+- Workbox writes a precache manifest with a **content revision per file**, so `dist/sw.js` changes
+  whenever any asset changes. The browser detects the update, and the superseded precache (including
+  the previous `index.html`) is dropped.
+- `public/sw-legacy-cleanup.js` is imported by the generated worker purely to delete the pre-Workbox
+  `daily-wins-*` caches left on existing installations. It can be removed once no installs remain on
+  a pre-Workbox build.
+- `registerType: 'prompt'` means a new worker installs and then *waits*, so nobody loses a half-typed
+  win to a surprise reload. `src/components/UpdateBanner.tsx` offers a Reload button; if it is
+  ignored, the waiting worker activates by itself once every tab is closed, so the update applies on
+  next open.
+- `netlify.toml` caches `/assets/*` (content-hashed by Vite) as `immutable` for a year, and forces
+  revalidation of `/index.html`. Netlify additionally invalidates its own CDN cache on every deploy.
+
+> Never make the entry document cache-first in a service worker. That is what pinned every returning
+> user to the build they first loaded, and it is why the previous hand-rolled `public/sw.js` was
+> replaced.
+
+### 8. Run
 ```bash
 npm run dev      # start the dev server (http://localhost:5173)
 npm run build    # production build
