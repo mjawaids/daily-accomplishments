@@ -12,16 +12,7 @@ interface PendingAccomplishment extends Omit<AccomplishmentInsert, 'user_id'> {
   synced: boolean;
 }
 
-interface PendingUpdate {
-  id: string;
-  text: string;
-  synced: boolean;
-}
 
-interface PendingDelete {
-  id: string;
-  synced: boolean;
-}
 
 class OfflineManager {
   private dbName = 'DailyWinsDB';
@@ -163,7 +154,7 @@ class OfflineManager {
     // Try to update online first
     if (navigator.onLine) {
       try {
-        const updateData: any = { text };
+        const updateData: { text: string; created_at?: string; updated_at?: string } = { text };
         if (createdAt) {
           updateData.created_at = createdAt;
           updateData.updated_at = new Date().toISOString();

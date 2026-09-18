@@ -1,8 +1,8 @@
 // Google Analytics configuration and utilities
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void;
-    dataLayer: any[];
+    gtag: (...args: unknown[]) => void;
+    dataLayer: unknown[];
   }
 }
 
@@ -23,8 +23,8 @@ export const initGA = () => {
 
   // Initialize dataLayer and gtag
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag() {
-    window.dataLayer.push(arguments);
+  window.gtag = function gtag(...args: unknown[]) {
+    window.dataLayer.push(args);
   };
 
   window.gtag('js', new Date());
