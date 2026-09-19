@@ -15,7 +15,7 @@
 
 import type { Config } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 
 export const config: Config = { schedule: '*/15 * * * *' };
 
@@ -80,6 +80,7 @@ export default async (): Promise<Response> => {
   const due = (data || []) as DueRow[];
   let sent = 0;
   let failed = 0;
+  let ambiguous = 0;
   const unsent: number[] = [];
 
   const batches = chunk(due, CHUNK_SIZE);
@@ -89,6 +90,11 @@ export default async (): Promise<Response> => {
 
     if (Date.now() > deadline) {
       // Never POSTed — definitely not delivered, so it is safe to release.
+      // Worth shouting about: it means one run can no longer drain the queue.
+      console.error(
+        '[evening-reminder] out of time, releasing unsent batch',
+        describe(logIds, `${batches.length - i} of ${batches.length} batches left`)
+      );
       unsent.push(...logIds);
       continue;
     }
@@ -99,31 +105,41 @@ export default async (): Promise<Response> => {
     );
 
     if (outcome.kind === 'sent') {
-      await supabase
+      const { error: writeError } = await supabase
         .from('notification_log')
         .update({ status: 'sent', onesignal_id: outcome.id, sent_at: new Date().toISOString() })
         .in('id', logIds);
+      // This is the write that matters most. If it fails the row stays
+      // 'claimed', and the UNIQUE (user_id, kind, local_date) index then blocks
+      // the re-claim tomorrow as well — one lost write, two missed reminders.
+      if (writeError) logWriteFailure('sent', logIds, writeError);
       sent += batch.length;
     } else if (outcome.kind === 'failed') {
       // A definite rejection: it will fail identically next run, so record it
       // and leave the row in place rather than retrying forever.
-      await supabase
+      console.error('[evening-reminder] send rejected', describe(logIds, outcome.error));
+      const { error: writeError } = await supabase
         .from('notification_log')
         .update({ status: 'failed', error: outcome.error.slice(0, 500) })
         .in('id', logIds);
+      if (writeError) logWriteFailure('failed', logIds, writeError);
       failed += batch.length;
     } else if (outcome.kind === 'not-sent') {
       // Provably never left this process.
+      console.error('[evening-reminder] not sent, releasing', describe(logIds, outcome.error));
       unsent.push(...logIds);
     } else {
       // Ambiguous: a timeout or 5xx where the request may well have been
       // delivered. Leaving the row claimed risks a missed reminder; releasing it
       // risks a duplicate 8pm push. A missed nudge is an annoyance, a duplicate
       // is a reason to uninstall — so we leave it claimed.
-      await supabase
+      console.error('[evening-reminder] ambiguous, left claimed', describe(logIds, outcome.error));
+      const { error: writeError } = await supabase
         .from('notification_log')
         .update({ error: outcome.error.slice(0, 500) })
         .in('id', logIds);
+      if (writeError) logWriteFailure('ambiguous', logIds, writeError);
+      ambiguous += batch.length;
     }
   }
 
@@ -136,13 +152,34 @@ export default async (): Promise<Response> => {
 
   await sweepOldLogs(supabase);
 
-  const summary = { claimed: due.length, sent, failed, released: unsent.length };
+  const summary = { claimed: due.length, sent, failed, ambiguous, released: unsent.length };
   console.log('[evening-reminder]', JSON.stringify(summary));
   return new Response(JSON.stringify(summary), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
 };
+
+/** Netlify's log is the only place anyone looks first, so every non-success
+    outcome has to name itself there. The reason used to go to Postgres alone,
+    which made a total delivery failure indistinguishable from a quiet night.
+    Aliases are deliberately never logged — log ids are enough to find the row. */
+function describe(logIds: number[], reason: string): string {
+  return JSON.stringify({
+    count: logIds.length,
+    logIds: logIds.slice(0, 20),
+    reason,
+  });
+}
+
+/** The send already happened (or provably did not) by the time we record it;
+    losing this write only loses the record, so log it and keep going. */
+function logWriteFailure(outcome: string, logIds: number[], error: PostgrestError): void {
+  console.error(
+    `[evening-reminder] could not record '${outcome}' outcome`,
+    describe(logIds, error.message)
+  );
+}
 
 type SendOutcome =
   | { kind: 'sent'; id: string | null }
@@ -170,7 +207,11 @@ async function sendChunk(aliases: string[], deadline: number): Promise<SendOutco
     // Replaces a stale reminder rather than stacking a second one.
     web_push_topic: 'evening_reminder',
     idempotency_key: idempotencyKey,
-    throttle_rate_per_minute: 0,
+    // NB: do not add `throttle_rate_per_minute` here. Throttling is a Growth+
+    // entitlement, and a free-plan app is rejected with
+    // 400 {"errors":["This app is not entitled to use throttling"]} for sending
+    // the field at all — including the value 0. Omitting it applies the app
+    // default, which is what we want anyway.
   });
 
   let lastError = 'unknown';
