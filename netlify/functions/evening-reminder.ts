@@ -6,8 +6,8 @@
    resulting push aliases to OneSignal.
 
    All of the timezone reasoning lives in the claim RPC (see
-   supabase/migrations/20250918000000_push_reminders.sql) — this file only has to
-   move the results to OneSignal and record what happened.
+   supabase/migrations/20260918192438_20250918000000_push_reminders.sql.sql) —
+   this file only has to move the results to OneSignal and record what happened.
 
    Scheduled functions cannot be invoked over public HTTP, so there is no
    endpoint to authenticate or abuse. Trigger manually with the "Run now" button
