@@ -34,6 +34,14 @@ const DEADLINE_MS = 22_000;
 /** OneSignal accepts more per request; 500 keeps each POST fast and makes a
     partial failure granular. */
 const CHUNK_SIZE = 500;
+/** OneSignal's View User endpoint is limited to 1 request/sec/app, so a run can
+    only afford a few reachability lookups. Anything not checked this run is
+    reported again by the next send that reaches it. */
+const MAX_LOOKUPS = 5;
+const LOOKUP_SPACING_MS = 1_100;
+/** OneSignal's wording for "no subscription matched by this request is
+    subscribed" — per its docs, every subscription matched by the aliases. */
+const ALL_UNSUBSCRIBED = 'All included players are not subscribed';
 
 interface DueRow {
   log_id: number;
@@ -82,6 +90,11 @@ export default async (): Promise<Response> => {
   let failed = 0;
   let ambiguous = 0;
   const unsent: number[] = [];
+  // Aliases OneSignal has already proven have no live subscription.
+  const unreachable = new Set<string>();
+  // Aliases with at least one unsubscribed device, which is NOT the same as none
+  // live — a user whose laptop lapsed still gets the push on their phone.
+  const suspects = new Set<string>();
 
   const batches = chunk(due, CHUNK_SIZE);
   for (let i = 0; i < batches.length; i++) {
@@ -114,6 +127,7 @@ export default async (): Promise<Response> => {
       // the re-claim tomorrow as well — one lost write, two missed reminders.
       if (writeError) logWriteFailure('sent', logIds, writeError);
       sent += batch.length;
+      outcome.unsubscribed.forEach((a) => suspects.add(a));
     } else if (outcome.kind === 'failed') {
       // A definite rejection: it will fail identically next run, so record it
       // and leave the row in place rather than retrying forever.
@@ -124,6 +138,10 @@ export default async (): Promise<Response> => {
         .in('id', logIds);
       if (writeError) logWriteFailure('failed', logIds, writeError);
       failed += batch.length;
+      // "All included players are not subscribed" is a verdict on every alias
+      // in the request, so it is authoritative for each of them without a
+      // lookup. Any other rejection says nothing about reachability.
+      if (outcome.allUnsubscribed) batch.forEach((r) => unreachable.add(r.push_alias));
     } else if (outcome.kind === 'not-sent') {
       // Provably never left this process.
       console.error('[evening-reminder] not sent, releasing', describe(logIds, outcome.error));
@@ -150,9 +168,18 @@ export default async (): Promise<Response> => {
     if (releaseError) console.error('[evening-reminder] release failed:', releaseError);
   }
 
+  const marked = await markUnreachable(supabase, unreachable, suspects, deadline);
+
   await sweepOldLogs(supabase);
 
-  const summary = { claimed: due.length, sent, failed, ambiguous, released: unsent.length };
+  const summary = {
+    claimed: due.length,
+    sent,
+    failed,
+    ambiguous,
+    released: unsent.length,
+    unreachable: marked,
+  };
   console.log('[evening-reminder]', JSON.stringify(summary));
   return new Response(JSON.stringify(summary), {
     status: 200,
@@ -182,8 +209,8 @@ function logWriteFailure(outcome: string, logIds: number[], error: PostgrestErro
 }
 
 type SendOutcome =
-  | { kind: 'sent'; id: string | null }
-  | { kind: 'failed'; error: string }
+  | { kind: 'sent'; id: string | null; unsubscribed: string[] }
+  | { kind: 'failed'; error: string; allUnsubscribed: boolean }
   | { kind: 'not-sent'; error: string }
   | { kind: 'ambiguous'; error: string };
 
@@ -259,19 +286,121 @@ async function sendChunk(aliases: string[], deadline: number): Promise<SendOutco
       errors?: unknown;
     };
 
-    if (res.ok && payload.id) return { kind: 'sent', id: payload.id };
+    // `errors` is polymorphic: an object of per-identifier listings alongside a
+    // created notification, or a string array when nothing was sent.
+    if (res.ok && payload.id) {
+      return { kind: 'sent', id: payload.id, unsubscribed: invalidExternalIds(payload.errors) };
+    }
 
     if (res.ok) {
       // 2xx with errors and no id — e.g. "All included players are not
       // subscribed". Not retryable.
-      return { kind: 'failed', error: `no notification created: ${JSON.stringify(payload.errors)}` };
+      return {
+        kind: 'failed',
+        error: `no notification created: ${JSON.stringify(payload.errors)}`,
+        allUnsubscribed: Array.isArray(payload.errors) && payload.errors.includes(ALL_UNSUBSCRIBED),
+      };
     }
 
     // Any other 4xx: definitely not sent, and identical next time.
-    return { kind: 'failed', error: `http ${res.status}: ${JSON.stringify(payload)}` };
+    return {
+      kind: 'failed',
+      error: `http ${res.status}: ${JSON.stringify(payload)}`,
+      allUnsubscribed: false,
+    };
   }
 
   return { kind: 'ambiguous', error: lastError };
+}
+
+/** errors.invalid_aliases.external_id from a successful send: aliases with at
+    least one subscription that was unsubscribed at send time. */
+function invalidExternalIds(errors: unknown): string[] {
+  if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return [];
+  const aliases = (errors as { invalid_aliases?: { external_id?: unknown } }).invalid_aliases;
+  const ids = aliases?.external_id;
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+}
+
+/* Stops sending to accounts with no live push subscription, instead of writing
+   a 'failed' row for them every night forever.
+
+   This sets user_settings.push_unreachable_since, NOT push_enabled: the user's
+   choice stays on, so a returning device still silently resubscribes and clears
+   the mark (see the push_unreachable migration). And only OneSignal's verdict
+   counts — subscription state is per-browser, so no client may decide this for
+   the account.
+
+   `unreachable` is already proven by the send. `suspects` came from a mixed
+   batch, where invalid_aliases only means "some device lapsed", so each needs a
+   View User lookup to learn whether ANY device is still subscribed. Returns the
+   number of accounts newly marked. */
+async function markUnreachable(
+  supabase: SupabaseClient,
+  unreachable: Set<string>,
+  suspects: Set<string>,
+  deadline: number
+): Promise<number> {
+  const toCheck = [...suspects].filter((a) => !unreachable.has(a));
+  // Shuffled so a user whose laptop lapsed but whose phone is live (listed on
+  // every send, never unreachable) cannot starve everyone behind them.
+  for (let i = toCheck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [toCheck[i], toCheck[j]] = [toCheck[j], toCheck[i]];
+  }
+
+  let lookups = 0;
+  for (const alias of toCheck) {
+    if (lookups >= MAX_LOOKUPS || Date.now() > deadline) break;
+    if (lookups > 0) await sleep(LOOKUP_SPACING_MS);
+    lookups++;
+    const live = await hasLivePushSubscription(alias);
+    if (live === 'rate-limited') break;
+    if (live === false) unreachable.add(alias);
+  }
+
+  if (!unreachable.size) return 0;
+  const { data, error } = await supabase.rpc('mark_push_unreachable', {
+    p_aliases: [...unreachable],
+  });
+  if (error) {
+    // Nothing lost: the next send to these accounts proves it again.
+    console.error('[evening-reminder] could not mark unreachable:', error.message);
+    return 0;
+  }
+  return typeof data === 'number' ? data : 0;
+}
+
+/** true/false from OneSignal's View User; null when the answer is unknown, in
+    which case the account is left alone. A 404 means OneSignal has no user for
+    the alias at all, so nothing can receive it. */
+async function hasLivePushSubscription(alias: string): Promise<boolean | null | 'rate-limited'> {
+  try {
+    const res = await fetch(
+      `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/users/by/external_id/${encodeURIComponent(alias)}`,
+      {
+        headers: { Authorization: `Key ${ONESIGNAL_REST_API_KEY}` },
+        signal: AbortSignal.timeout(3_000),
+      }
+    );
+    if (res.status === 404) return false;
+    if (res.status === 429) return 'rate-limited';
+    if (!res.ok) {
+      console.error(`[evening-reminder] reachability lookup failed: http ${res.status}`);
+      return null;
+    }
+    const user = (await res.json()) as { subscriptions?: Array<{ type?: string; enabled?: boolean }> };
+    if (!Array.isArray(user.subscriptions)) return null;
+    return user.subscriptions.some(
+      (s) => s.enabled === true && s.type !== 'Email' && s.type !== 'SMS'
+    );
+  } catch (err) {
+    console.error(
+      '[evening-reminder] reachability lookup failed:',
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
 }
 
 function backoff(attempt: number): number {

@@ -56,6 +56,7 @@ export function Profile({ device }: { device: Device }) {
     settings,
     settingsLoading,
     pushState,
+    pushUnreachable,
     pushBusy,
     setPushEnabled,
     updateSettings,
@@ -90,21 +91,25 @@ export function Profile({ device }: { device: Device }) {
   const detectedTz = browserTimezone();
   const tzDiffers = !!settings && settings.timezone !== detectedTz;
 
+  // The sender has paused because OneSignal reports no device subscribed at
+  // all. The account setting is still on; any device that subscribes resumes it.
+  const onFor = pushUnreachable ? 'Paused — no device is subscribed' : 'On for your account';
+
   let pushSub: string;
   if (pushState === 'unsupported') {
-    pushSub = pushOn
-      ? "On for your account — this browser can't receive push"
-      : 'Not supported in this browser';
+    pushSub = pushOn ? `${onFor} — this browser can't receive push` : 'Not supported in this browser';
   } else if (iosNeedsInstall) {
     pushSub = pushOn
-      ? 'On for your account — add to your Home Screen to receive here'
+      ? `${onFor} — add to your Home Screen to receive here`
       : 'Add Daily Wins to your Home Screen first';
   } else if (pushState === 'denied') {
     pushSub = pushOn
-      ? 'On for your account — blocked in this browser'
+      ? `${onFor} — blocked in this browser`
       : 'Blocked — enable notifications in your browser settings';
   } else if (pushOn && !deviceSubscribed) {
-    pushSub = 'On for your account — not enabled on this device yet';
+    pushSub = pushUnreachable
+      ? `${onFor} — allow notifications on this device to resume`
+      : 'On for your account — not enabled on this device yet';
   } else {
     pushSub = 'Daily reminders on every device you allow';
   }
