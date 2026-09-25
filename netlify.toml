@@ -1,6 +1,8 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  # check-build-env fails the deploy when a required VITE_* variable is not set
+  # in Netlify, instead of shipping a site that throws on load.
+  command = "node scripts/check-build-env.mjs && npm run build"
 
 [[redirects]]
   from = "/*"

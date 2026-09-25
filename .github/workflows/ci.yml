@@ -1,0 +1,50 @@
+# Runs on every pull request into main. Both jobs are meant to be required
+# status checks (Settings > Branches > main), so nothing merges that would break
+# the production deploy in deploy.yml.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck:functions
+      - run: npm run build
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.118.0
+      # Read-only. Lists the migrations this PR would apply to production and
+      # fails when supabase/migrations/ and production's migration history
+      # disagree (a file whose version production never recorded, or a recorded
+      # version with no file) -- the drift that otherwise only surfaces when the
+      # deploy's real `db push` fails.
+      #
+      # Authenticates with an access token only: with no database password the
+      # CLI connects through a short-lived login role it creates via the
+      # Management API, so there is no connection string to get wrong.
+      - name: Dry-run migrations against production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: wojqiexptcgcvqeapgji
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked --dry-run
