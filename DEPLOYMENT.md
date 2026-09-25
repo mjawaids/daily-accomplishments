@@ -32,7 +32,7 @@ version is always traceable to a commit.
 
 | Name | What |
 |---|---|
-| `SUPABASE_DB_URL` | Supabase Session pooler connection string, password percent-encoded |
+| `SUPABASE_ACCESS_TOKEN` | Supabase personal access token (Account > Access Tokens). No database password is needed. |
 | `NETLIFY_AUTH_TOKEN` | Netlify personal access token |
 | `NETLIFY_SITE_ID` | Netlify project ID |
 
