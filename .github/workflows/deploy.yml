@@ -1,0 +1,55 @@
+# The only path to production: every push to main applies pending database
+# migrations, then builds and deploys the site and functions to Netlify.
+#
+# Migrations run first so new code never meets an old schema. If the Netlify
+# step then fails, production has the new schema with the previous code, which
+# is why migrations must stay backward compatible (additive first; drop or
+# rename only after the code that stops using it is live).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One production deploy at a time, in push order; never cancel one mid-way.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck:functions
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.118.0
+      - name: Apply database migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --yes --db-url "$SUPABASE_DB_URL"
+
+      # Builds with the environment variables stored in Netlify (production
+      # context) and uploads the site plus netlify/functions. The build command
+      # comes from netlify.toml. --context matters: the CLI defaults to "dev".
+      - name: Build and deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: >-
+          npx --yes netlify-cli@27.10.0 deploy
+          --prod
+          --context production
+          --message "${{ github.sha }}: $(git log -1 --format=%s | head -c 150)"
