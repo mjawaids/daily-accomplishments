@@ -14,7 +14,12 @@ import { trackAccomplishmentEvent, trackConnectivityEvent } from '../../lib/anal
 import { toWin } from '../../lib/winsData';
 import type { Category, Win } from '../../lib/winsData';
 import type { Database } from '../../lib/supabase';
-import { ensureUserSettings, updateUserSettings } from '../../lib/userSettings';
+import {
+  ensureUserSettings,
+  loadPushUnreachable,
+  markPushReachable,
+  updateUserSettings,
+} from '../../lib/userSettings';
 import type { UserSettings, UserSettingsPatch } from '../../lib/userSettings';
 import {
   disablePush,
@@ -78,6 +83,9 @@ export interface WinsContextValue {
   settings: UserSettings | null;
   settingsLoading: boolean;
   pushState: PushState;
+  /** True when OneSignal has told the sender that no device on this account can
+      receive a push, so reminders are paused even though push_enabled is on. */
+  pushUnreachable: boolean;
   /** True while a permission prompt / opt-in round trip is in flight. */
   pushBusy: boolean;
   setPushEnabled: (on: boolean) => Promise<void>;
@@ -132,6 +140,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [pushState, setPushState] = useState<PushState>(() => getPushState());
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushUnreachable, setPushUnreachable] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -262,6 +271,29 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   }, [userId]);
 
   useEffect(() => onPushStateChange(setPushState), []);
+
+  // The sender pauses an account once OneSignal reports no live subscription
+  // for it (push_unreachable_since). push_enabled is left on, so the silent
+  // resubscribe above still runs — and the moment THIS browser is subscribed,
+  // the account is reachable again. This only ever clears the mark: a browser
+  // that is not subscribed proves nothing about the account's other devices.
+  useEffect(() => {
+    if (!settings?.push_enabled) return;
+    let cancelled = false;
+    (async () => {
+      const unreachable = await loadPushUnreachable(userId);
+      if (cancelled || unreachable === null) return;
+      if (unreachable && pushState === 'granted-on') {
+        const cleared = await markPushReachable();
+        if (!cancelled) setPushUnreachable(!cleared);
+        return;
+      }
+      setPushUnreachable(unreachable);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, settings?.push_enabled, pushState]);
 
   const updateSettings = useCallback(
     async (patch: UserSettingsPatch) => {
@@ -410,6 +442,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     settings,
     settingsLoading,
     pushState,
+    pushUnreachable,
     pushBusy,
     setPushEnabled,
     updateSettings,

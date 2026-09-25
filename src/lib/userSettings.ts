@@ -98,6 +98,31 @@ export async function ensureUserSettings(userId: string): Promise<UserSettings |
   return null;
 }
 
+/** Whether the sender has stopped because OneSignal reports no live push
+    subscription for this account. Read on its own rather than added to COLUMNS
+    so the rest of the settings still load if the column is not there yet.
+    Null when unknown. */
+export async function loadPushUnreachable(userId: string): Promise<boolean | null> {
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('push_unreachable_since')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { push_unreachable_since: string | null }).push_unreachable_since !== null;
+}
+
+/** Tells the sender this account has a subscribed device again. Only ever
+    clears the server's "unreachable" mark; the client cannot set it. */
+export async function markPushReachable(): Promise<boolean> {
+  const { error } = await supabase.rpc('mark_push_reachable');
+  if (error) {
+    console.error('Error clearing push unreachable mark:', error);
+    return false;
+  }
+  return true;
+}
+
 export async function updateUserSettings(
   userId: string,
   patch: UserSettingsPatch

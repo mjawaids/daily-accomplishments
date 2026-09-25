@@ -42,7 +42,7 @@
   - ✅ Handles cancellations
   - Uses `SUPABASE_SERVICE_ROLE_KEY` (server-side only)
 
-- `supabase/migrations/20250113_create_profiles_table.sql`
+- `supabase/migrations/20260918192400_20250113_create_profiles_table.sql.sql`
   - Creates `profiles` table to store subscription metadata
   - Columns: `subscription_status`, `subscription_plan`, `paddle_customer_id`, `paddle_transaction_id`
   - Row-level security policies (users can only read own profile)

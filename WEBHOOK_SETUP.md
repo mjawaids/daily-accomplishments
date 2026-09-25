@@ -36,7 +36,7 @@ Run this migration in your Supabase dashboard:
 
 **Supabase Dashboard → SQL Editor → New Query**
 
-Copy the SQL from `supabase/migrations/20250113_create_profiles_table.sql` and run it.
+Copy the SQL from `supabase/migrations/20260918192400_20250113_create_profiles_table.sql.sql` and run it.
 
 This creates:
 - `profiles` table with subscription columns
