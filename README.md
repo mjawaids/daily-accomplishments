@@ -134,6 +134,11 @@ curl -I https://<site>/onesignal/OneSignalSDKWorker.js   # expect application/ja
 - **iOS/iPadOS needs 16.4+ *and* the app added to the Home Screen** — web push
   does not work in an iOS Safari tab. The settings toggle detects this and
   explains it. Android and desktop browsers subscribe directly.
+- **Content blockers** (Brave Shields, uBlock Origin and similar) block the
+  OneSignal SDK, which loads from `cdn.onesignal.com`. When it fails to load
+  (or does not load within 10s), the toggle reports it as blocked and asks the
+  user to allow the site and reload. It does not report "not supported".
+  Reminders cannot reach that browser until the user does this.
 - The reminder payload is deliberately generic and carries no personal data,
   because the Web SDK has no Identity Verification. See the migration header and
   `src/lib/onesignal.ts` for the reasoning.

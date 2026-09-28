@@ -318,6 +318,8 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
             showToast('Reminders on', 'bell');
           } else if (state === 'denied') {
             showToast('Notifications are blocked in your browser settings', 'bell');
+          } else if (state === 'blocked') {
+            showToast('A content blocker is stopping notifications — allow this site, then reload', 'bell');
           }
         } else {
           await disablePush();

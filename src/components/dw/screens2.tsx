@@ -102,6 +102,11 @@ export function Profile({ device }: { device: Device }) {
     pushSub = pushOn
       ? `${onFor} — add to your Home Screen to receive here`
       : 'Add Daily Wins to your Home Screen first';
+  } else if (pushState === 'blocked') {
+    // Kept clickable (canEnableHere): a click explains the fix via a toast.
+    pushSub = pushOn
+      ? `${onFor} — a content blocker is stopping it on this device`
+      : 'Blocked by a content blocker — allow this site (e.g. in Brave Shields), then reload';
   } else if (pushState === 'denied') {
     pushSub = pushOn
       ? `${onFor} — blocked in this browser`

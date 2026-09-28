@@ -13,6 +13,7 @@ import type OneSignalType from 'react-onesignal';
 
 export type PushState =
   | 'unsupported' // no Notification/PushManager — includes iOS Safari in a tab
+  | 'blocked' // browser can do push, but the OneSignal SDK failed to load (content blocker, e.g. Brave Shields)
   | 'default' // never asked
   | 'denied' // blocked at the browser level; cannot re-prompt
   | 'granted-off' // permission granted, but opted out of this app
@@ -20,9 +21,23 @@ export type PushState =
 
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID as string | undefined;
 
+/** A blocked <script> tag never fires anything we can await, so without a cap
+    the toggle would sit on "Enabling…" forever. */
+const INIT_TIMEOUT_MS = 10_000;
+
 let sdk: typeof OneSignalType | null = null;
 let initPromise: Promise<boolean> | null = null;
+/* Set when the SDK could not be loaded. The usual cause is a content blocker —
+   Brave Shields, uBlock Origin and the like block cdn.onesignal.com and
+   api.onesignal.com — so the UI must say "blocked" rather than "unsupported":
+   the user CAN fix it, by allowing this site. */
+let sdkBlocked = false;
 const listeners = new Set<(s: PushState) => void>();
+
+function emit(): void {
+  const s = getPushState();
+  listeners.forEach((cb) => cb(s));
+}
 
 /* Marks that this browser has at some point been aliased to a user. Lets us skip
    loading the SDK on a logged-out visit unless there is actually a stale alias
@@ -62,7 +77,19 @@ export function isIosNeedsInstall(): boolean {
   return !window.matchMedia('(display-mode: standalone)').matches;
 }
 
-/** Idempotent. Resolves false when unsupported or VITE_ONESIGNAL_APP_ID is unset. */
+function attachSdk(OneSignal: typeof OneSignalType): void {
+  sdk = OneSignal;
+  sdkBlocked = false;
+  OneSignal.Notifications.addEventListener('permissionChange', emit);
+  OneSignal.User.PushSubscription.addEventListener('change', emit);
+}
+
+/** Idempotent. Resolves false when unsupported, VITE_ONESIGNAL_APP_ID is unset,
+    or the SDK could not be loaded (see sdkBlocked).
+
+    A failure is NOT retried within the page: react-onesignal keeps its failed
+    <script> tag and a module-level "failed" flag, so a second init() would just
+    hang. Once the user allows the site in their blocker, a reload recovers. */
 export function initOneSignal(): Promise<boolean> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
@@ -71,7 +98,7 @@ export function initOneSignal(): Promise<boolean> {
       console.warn('[onesignal] VITE_ONESIGNAL_APP_ID is not set; push disabled');
       return false;
     }
-    try {
+    const loading = (async () => {
       const mod = await import('react-onesignal');
       const OneSignal = mod.default;
       await OneSignal.init({
@@ -86,20 +113,38 @@ export function initOneSignal(): Promise<boolean> {
         autoResubscribe: true,
         allowLocalhostAsSecureOrigin: import.meta.env.DEV,
       });
-      sdk = OneSignal;
-
-      const emit = () => {
-        const s = getPushState();
-        listeners.forEach((cb) => cb(s));
-      };
-      OneSignal.Notifications.addEventListener('permissionChange', emit);
-      OneSignal.User.PushSubscription.addEventListener('change', emit);
+      return OneSignal;
+    })();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<'timeout'>((resolve) => {
+      timer = setTimeout(() => resolve('timeout'), INIT_TIMEOUT_MS);
+    });
+    try {
+      const result = await Promise.race([loading, timeout]);
+      if (result === 'timeout') {
+        console.error('[onesignal] SDK did not load in time — likely blocked by a content blocker');
+        sdkBlocked = true;
+        emit();
+        // A slow network rather than a blocker: adopt the SDK if it turns up after all.
+        loading.then(
+          (OneSignal) => {
+            attachSdk(OneSignal);
+            initPromise = Promise.resolve(true);
+            emit();
+          },
+          () => {}
+        );
+        return false;
+      }
+      attachSdk(result);
       return true;
     } catch (err) {
-      console.error('[onesignal] init failed:', err);
-      // Allow a later retry rather than wedging push for the whole page life.
-      initPromise = null;
+      console.error('[onesignal] init failed — likely blocked by a content blocker:', err);
+      sdkBlocked = true;
+      emit();
       return false;
+    } finally {
+      clearTimeout(timer);
     }
   })();
   return initPromise;
@@ -109,6 +154,8 @@ export function getPushState(): PushState {
   if (!isPushSupported()) return 'unsupported';
   const native = typeof Notification !== 'undefined' ? Notification.permission : 'default';
   if (native === 'denied') return 'denied';
+  // After 'denied' on purpose: the browser setting is the first thing to fix.
+  if (sdkBlocked) return 'blocked';
   if (native === 'default') return 'default';
   // Granted at the browser level — the SDK decides whether we're actually opted in.
   if (!sdk) return 'granted-off';
@@ -169,7 +216,7 @@ export async function enablePush(): Promise<PushState> {
   // already denied, which would otherwise leave the toggle silently refusing to
   // move. Check first so the UI can explain itself.
   if (Notification.permission === 'denied') return 'denied';
-  if (!(await initOneSignal()) || !sdk) return 'unsupported';
+  if (!(await initOneSignal()) || !sdk) return sdkBlocked ? 'blocked' : 'unsupported';
   try {
     if (Notification.permission !== 'granted') {
       await sdk.Notifications.requestPermission();
