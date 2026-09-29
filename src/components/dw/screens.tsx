@@ -255,6 +255,8 @@ export function Timeline({ device }: { device: Device }) {
     timelineDay: day,
     setTimelineDay: setDay,
     openAddForDay,
+    sheetOpen,
+    categorySheet,
   } = useDW();
   const [query, setQuery] = useState('');
   const [pickedCats, setPickedCats] = useState<string[]>([]);
@@ -313,10 +315,12 @@ export function Timeline({ device }: { device: Device }) {
     setDay(d);
   };
 
-  // "/" opens search from anywhere on the Timeline, unless the user is typing.
+  // "/" opens search from anywhere on the Timeline, unless the user is typing
+  // or a sheet is open over it (focus would jump behind the sheet).
   const hasEntries = entries.length > 0;
+  const sheetShown = sheetOpen || !!categorySheet;
   useEffect(() => {
-    if (!hasEntries) return;
+    if (!hasEntries || sheetShown) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
       e.preventDefault();
@@ -325,7 +329,7 @@ export function Timeline({ device }: { device: Device }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hasEntries]);
+  }, [hasEntries, sheetShown]);
 
   const headRight = (
     <div className="dw-headact">
