@@ -89,6 +89,66 @@ export function monthLabel(ts: number): string {
   return MONTHS[d.getMonth()] + ' ' + ("'" + String(d.getFullYear()).slice(2));
 }
 
+/** Lower-cased, accent-stripped form used for matching ("Café" → "cafe"). */
+export function foldText(s: string): string {
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
+}
+
+/** Search terms from a query box: folded, split on whitespace, empties dropped. */
+export function searchTerms(query: string): string[] {
+  return foldText(query).split(/\s+/).filter(Boolean);
+}
+
+export interface WinFilter {
+  query?: string;
+  /** A local-date `YYYY-MM-DD` key (see dayKey()) to restrict to one day. */
+  day?: string | null;
+}
+
+/** Wins matching every search term (in the text or the category name) and,
+    if given, falling on `day`. An empty filter keeps everything. */
+export function filterWins(entries: Win[], filter: WinFilter, categoryName: (categoryId: string) => string): Win[] {
+  const terms = searchTerms(filter.query || '');
+  const day = filter.day || null;
+  if (!terms.length && !day) return entries;
+  return entries.filter((e) => {
+    if (day && dayKey(e.ts) !== day) return false;
+    if (!terms.length) return true;
+    const hay = foldText(e.text) + '\n' + foldText(categoryName(e.categoryId));
+    return terms.every((t) => hay.includes(t));
+  });
+}
+
+/** Splits `text` into plain and matched parts for highlighting search terms.
+    Matching is accent- and case-insensitive (like filterWins()), but the parts
+    carry the original text. */
+export function highlightParts(text: string, terms: string[]): Array<{ text: string; match: boolean }> {
+  if (!terms.length) return [{ text, match: false }];
+  // Fold character by character, remembering where each folded character came
+  // from, so a match in the folded string maps back onto the original.
+  const chars = Array.from(text);
+  let folded = '';
+  const origin: number[] = [];
+  chars.forEach((ch, i) => {
+    const f = foldText(ch);
+    folded += f;
+    for (let k = 0; k < f.length; k++) origin.push(i);
+  });
+  const hit = new Array<boolean>(chars.length).fill(false);
+  for (const t of terms) {
+    for (let at = folded.indexOf(t); at !== -1; at = folded.indexOf(t, at + t.length)) {
+      for (let k = at; k < at + t.length; k++) hit[origin[k]] = true;
+    }
+  }
+  const parts: Array<{ text: string; match: boolean }> = [];
+  chars.forEach((ch, i) => {
+    const last = parts[parts.length - 1];
+    if (last && last.match === hit[i]) last.text += ch;
+    else parts.push({ text: ch, match: hit[i] });
+  });
+  return parts;
+}
+
 export interface DayGroup {
   key: string;
   ts: number;

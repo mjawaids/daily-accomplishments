@@ -235,6 +235,32 @@
   background:var(--surface);border:1px solid var(--line-2);font-weight:600;font-size:13.5px;color:var(--ink-2);box-shadow:var(--shadow-sm)}
 .dw-loadmore button:hover{color:var(--ink);border-color:var(--faint)}
 
+/* search + jump to date */
+.dw-searchbar{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.dw-searchbar .dw-inputrow{flex:1;min-width:0;background:var(--surface)}
+.dw-searchbar input[type="search"]{min-width:0;color:var(--ink);-webkit-appearance:none;appearance:none}
+.dw-searchbar input[type="search"]::-webkit-search-cancel-button{display:none}
+.dw-searchbar input::placeholder{color:var(--faint)}
+.dw-datepick{position:relative;flex:none}
+.dw-datepick .dw-iconbtn{width:46px;height:46px}
+.dw-datepick input{position:absolute;inset:0;opacity:0;pointer-events:none;width:100%;height:100%}
+.dw-iconbtn.active{background:var(--accent-soft);color:var(--accent)}
+.dw-iconbtn.sm{width:32px;height:32px;border-radius:10px}
+.dw-iconbtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.dw-clear{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:9px;
+  font-size:12.5px;font-weight:700;color:var(--muted)}
+.dw-clear:hover{color:var(--ink);background:var(--surface-2)}
+.dw-dayfilter{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:10px;border-radius:14px;
+  background:var(--accent-soft);border:1px solid color-mix(in oklab,var(--accent) 22%,transparent)}
+.dw-dayfilter .lbl{font-family:var(--font-display);font-weight:700;font-size:14.5px;color:var(--ink)}
+.dw-results{font-size:12.5px;font-weight:600;color:var(--muted);padding:2px 2px 0}
+.dw-noresults{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+  padding:36px 16px;color:var(--muted)}
+.dw-noresults p{font-size:14px;max-width:34ch}
+.dw-card mark{background:color-mix(in oklab,var(--accent) 28%,transparent);color:inherit;border-radius:4px;padding:0 1px}
+.dw-heatcell{display:block;width:100%;padding:0}
+.dw-heatcell:hover{outline:2px solid var(--accent);outline-offset:1px}
+
 /* ============================================================ bottom nav (tabbar) */
 .dw-tabbar{flex:none;display:flex;align-items:center;justify-content:space-around;
   background:color-mix(in oklab,var(--surface) 88%,transparent);backdrop-filter:blur(14px);

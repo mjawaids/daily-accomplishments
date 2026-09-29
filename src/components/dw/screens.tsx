@@ -1,6 +1,6 @@
 /* DailyWins — Timeline + Insights screens.
    Ported from the Claude Design handoff (app/screens.jsx). */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDW } from './useDW';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
@@ -12,7 +12,10 @@ import {
   groupByDay,
   heatCells,
   categoryMix,
+  dayLabel,
+  filterWins,
   isoLocal,
+  searchTerms,
   weekBars,
 } from '../../lib/winsData';
 import { catColorVar, categoryColor } from '../../lib/categories';
@@ -89,12 +92,135 @@ function ScreenHead({ device, title, subtitle, right }: ScreenHeadProps) {
   );
 }
 
+/** `YYYY-MM-DD` shifted by `delta` days (local calendar). */
+function shiftDay(day: string, delta: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return isoLocal(new Date(y, m - 1, d + delta));
+}
+
+function dayTs(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
+interface SearchBarProps {
+  query: string;
+  setQuery: (q: string) => void;
+  day: string | null;
+  setDay: (d: string | null) => void;
+}
+
+// ---- search box + jump-to-date ----
+function SearchBar({ query, setQuery, day, setDay }: SearchBarProps) {
+  const dateRef = useRef<HTMLInputElement>(null);
+  const today = isoLocal(new Date());
+  const openPicker = () => {
+    const el = dateRef.current;
+    if (!el) return;
+    try {
+      el.showPicker();
+    } catch {
+      el.focus();
+    }
+  };
+  return (
+    <div className="dw-searchbar">
+      <div className="dw-inputrow">
+        <Icon name="search" size={18} />
+        <input
+          type="search"
+          value={query}
+          placeholder="Search your wins"
+          aria-label="Search your wins"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setQuery('');
+          }}
+        />
+        {query && (
+          <button className="dw-clear" title="Clear search" aria-label="Clear search" onClick={() => setQuery('')}>
+            <Icon name="x" size={16} />
+          </button>
+        )}
+      </div>
+      <div className="dw-datepick">
+        <button
+          className={'dw-iconbtn' + (day ? ' active' : '')}
+          title="Jump to a date"
+          aria-label="Jump to a date"
+          onClick={openPicker}
+        >
+          <Icon name="calendar" size={19} />
+        </button>
+        <input
+          ref={dateRef}
+          type="date"
+          tabIndex={-1}
+          aria-hidden="true"
+          max={today}
+          value={day || ''}
+          onChange={(e) => setDay(e.target.value || null)}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface DayFilterBarProps {
+  day: string;
+  setDay: (d: string | null) => void;
+}
+
+// ---- the selected day, with previous / next / clear ----
+function DayFilterBar({ day, setDay }: DayFilterBarProps) {
+  const today = isoLocal(new Date());
+  return (
+    <div className="dw-dayfilter">
+      <button className="dw-iconbtn sm" title="Previous day" aria-label="Previous day" onClick={() => setDay(shiftDay(day, -1))}>
+        <Icon name="chevL" size={17} />
+      </button>
+      <span className="lbl">{dayLabel(dayTs(day))}</span>
+      <button
+        className="dw-iconbtn sm"
+        title="Next day"
+        aria-label="Next day"
+        disabled={day >= today}
+        onClick={() => setDay(shiftDay(day, 1))}
+      >
+        <Icon name="chevR" size={17} />
+      </button>
+      <button className="dw-clear" style={{ marginLeft: 'auto' }} onClick={() => setDay(null)}>
+        <Icon name="x" size={15} />
+        All days
+      </button>
+    </div>
+  );
+}
+
 // ============================================ TIMELINE
 export function Timeline({ device }: { device: Device }) {
-  const { entries, prefs, visibleDays, setVisibleDays, setScreen, catById } = useDW();
+  const {
+    entries,
+    prefs,
+    visibleDays,
+    setVisibleDays,
+    setScreen,
+    catById,
+    timelineDay: day,
+    setTimelineDay: setDay,
+    openAddForDay,
+  } = useDW();
+  const [query, setQuery] = useState('');
 
-  const groups = useMemo(() => groupByDay(entries), [entries]);
-  const shown = groups.slice(0, visibleDays);
+  const terms = useMemo(() => searchTerms(query), [query]);
+  const filtering = terms.length > 0 || !!day;
+  const matches = useMemo(
+    () => filterWins(entries, { query, day }, (id) => catById(id).name),
+    [entries, query, day, catById]
+  );
+  const groups = useMemo(() => groupByDay(matches), [matches]);
+  // While searching / on one day, show every match rather than paginating.
+  const shown = filtering ? groups : groups.slice(0, visibleDays);
 
   const headRight = (
     <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
@@ -124,8 +250,43 @@ export function Timeline({ device }: { device: Device }) {
         <QuickComposer />
       </div>
 
-      {groups.length === 0 ? (
+      {entries.length > 0 && <SearchBar query={query} setQuery={setQuery} day={day} setDay={setDay} />}
+      {day && <DayFilterBar day={day} setDay={setDay} />}
+      {filtering && groups.length > 0 && (
+        <div className="dw-results">
+          {matches.length} {matches.length === 1 ? 'win' : 'wins'}
+          {terms.length > 0 ? ` matching “${query.trim()}”` : ''}
+          {day ? ` on ${dayLabel(dayTs(day))}` : ''}
+        </div>
+      )}
+
+      {entries.length === 0 ? (
         <Empty />
+      ) : groups.length === 0 ? (
+        <div className="dw-noresults">
+          <Icon name={terms.length > 0 ? 'search' : 'calendar'} size={28} />
+          <p>
+            {terms.length > 0
+              ? `No wins match “${query.trim()}”${day ? ' on this day' : ''}.`
+              : `Nothing logged on ${day ? dayLabel(dayTs(day)) : 'this day'}.`}
+          </p>
+          {day && terms.length === 0 ? (
+            <button className="dw-btn sm" onClick={() => openAddForDay(day)}>
+              <Icon name="plus" size={16} sw={2.4} />
+              Log a win for this day
+            </button>
+          ) : (
+            <button
+              className="dw-btn sm ghost"
+              onClick={() => {
+                setQuery('');
+                setDay(null);
+              }}
+            >
+              Clear search
+            </button>
+          )}
+        </div>
       ) : (
         <div className="dw-feed" data-style="rail">
           {shown.map((g, gi) => (
@@ -141,7 +302,7 @@ export function Timeline({ device }: { device: Device }) {
                       ...(gi === 0 && i < 3 ? { animationDelay: i * 60 + 'ms' } : {}),
                     }}
                   >
-                    <EntryCard entry={e} style="rail" />
+                    <EntryCard entry={e} style="rail" highlight={terms} />
                   </div>
                 ))}
               </div>
@@ -159,7 +320,7 @@ export function Timeline({ device }: { device: Device }) {
             </div>
           )}
 
-          {shown.length >= groups.length && groups.length > 3 && (
+          {!filtering && shown.length >= groups.length && groups.length > 3 && (
             <div className="dw-credit">
               {`That's all ${entries.length} wins. `}
               <br />
@@ -181,7 +342,7 @@ export function Timeline({ device }: { device: Device }) {
 
 // ============================================ INSIGHTS
 export function Insights({ device }: { device: Device }) {
-  const { entries, setScreen, categories } = useDW();
+  const { entries, setScreen, categories, jumpToDay } = useDW();
   const streak = computeStreak(entries);
   const thisWeek = entriesThisWeek(entries);
   const total = entries.length;
@@ -311,9 +472,12 @@ export function Insights({ device }: { device: Device }) {
           }}
         >
           {cells.map((c, i) => (
-            <div
+            <button
               key={c.k}
+              className="dw-heatcell"
               title={`${c.c} on ${c.k}`}
+              aria-label={`${c.c} ${c.c === 1 ? 'win' : 'wins'} on ${dayLabel(dayTs(c.k))}`}
+              onClick={() => jumpToDay(c.k)}
               style={{
                 aspectRatio: '1',
                 borderRadius: 4,

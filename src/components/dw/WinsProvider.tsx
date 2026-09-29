@@ -83,6 +83,15 @@ export interface WinsContextValue {
   setSheetOpen: (open: boolean) => void;
   startEdit: (entry: Win) => void;
   openAdd: () => void;
+  /** Opens the add sheet with its date pre-set to `day` (`YYYY-MM-DD`). */
+  openAddForDay: (day: string) => void;
+  /** The day the add sheet opens on, when it was opened with openAddForDay(). */
+  addDay: string | null;
+  /** The day the Timeline is filtered to (`YYYY-MM-DD`), or null for all days. */
+  timelineDay: string | null;
+  setTimelineDay: (day: string | null) => void;
+  /** Switches to the Timeline, filtered to `day`. */
+  jumpToDay: (day: string) => void;
   prefs: Prefs;
   setPrefs: React.Dispatch<React.SetStateAction<Prefs>>;
   visibleDays: number;
@@ -156,6 +165,8 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   const [screen, setScreenRaw] = useState<Screen>('timeline');
   const [editing, setEditing] = useState<Win | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [addDay, setAddDay] = useState<string | null>(null);
+  const [timelineDay, setTimelineDay] = useState<string | null>(null);
   const [visibleDays, setVisibleDays] = useState(6);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [celebrate, setCelebrate] = useState(0);
@@ -409,8 +420,23 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
 
   const openAdd = useCallback(() => {
     setEditing(null);
+    setAddDay(null);
     setSheetOpen(true);
   }, []);
+
+  const openAddForDay = useCallback((day: string) => {
+    setEditing(null);
+    setAddDay(day);
+    setSheetOpen(true);
+  }, []);
+
+  const jumpToDay = useCallback(
+    (day: string) => {
+      setScreen('timeline');
+      setTimelineDay(day);
+    },
+    [setScreen]
+  );
 
   const addWin = useCallback(
     async ({ text, categoryId, ts }: { text: string; categoryId: string; ts?: number }) => {
@@ -555,6 +581,11 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     setSheetOpen,
     startEdit,
     openAdd,
+    openAddForDay,
+    addDay,
+    timelineDay,
+    setTimelineDay,
+    jumpToDay,
     prefs,
     setPrefs,
     visibleDays,

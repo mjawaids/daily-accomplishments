@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDW } from './useDW';
 import { Icon, CatGlyph } from './icons';
-import { isoLocal, timeLabel } from '../../lib/winsData';
+import { highlightParts, isoLocal, timeLabel } from '../../lib/winsData';
 import type { DayGroup, Win } from '../../lib/winsData';
 import { catColorVar } from '../../lib/categories';
 import { relativeDay, dayLabel, shortDay } from '../../lib/winsData';
@@ -73,12 +73,24 @@ export function CatTag({ categoryId, small }: { categoryId: string; small?: bool
   );
 }
 
+/** `text` with any of the (folded) search `terms` wrapped in <mark>. */
+function Highlighted({ text, terms }: { text: string; terms?: string[] }) {
+  if (!terms || !terms.length) return <>{text}</>;
+  return (
+    <>
+      {highlightParts(text, terms).map((p, i) => (p.match ? <mark key={i}>{p.text}</mark> : p.text))}
+    </>
+  );
+}
+
 interface EntryCardProps {
   entry: Win;
   style?: 'rail' | 'cards' | 'compact';
+  /** Search terms to highlight in the text (see searchTerms()). */
+  highlight?: string[];
 }
 
-export function EntryCard({ entry, style }: EntryCardProps) {
+export function EntryCard({ entry, style, highlight }: EntryCardProps) {
   const { startEdit } = useDW();
 
   if (style === 'compact') {
@@ -91,7 +103,7 @@ export function EntryCard({ entry, style }: EntryCardProps) {
             <CatTag categoryId={entry.categoryId} small />
           </div>
           <div className="c-body" style={{ fontSize: 14 }}>
-            {entry.text}
+            <Highlighted text={entry.text} terms={highlight} />
           </div>
         </div>
       </div>
@@ -104,7 +116,9 @@ export function EntryCard({ entry, style }: EntryCardProps) {
         <CatTag categoryId={entry.categoryId} small />
         <span className="c-time">{timeLabel(entry.ts)}</span>
       </div>
-      <div className="c-body">{entry.text}</div>
+      <div className="c-body">
+        <Highlighted text={entry.text} terms={highlight} />
+      </div>
       <div className="c-acts">
         <button
           className="c-act"
@@ -199,11 +213,11 @@ export function QuickComposer() {
 
 // ---- full entry form (used in sheet + fullscreen + edit) ----
 export function EntryForm({ onDone }: { onDone: () => void }) {
-  const { editing, addWin, updateWin, deleteWin } = useDW();
+  const { editing, addDay, addWin, updateWin, deleteWin } = useDW();
   const isEdit = !!editing;
   const [text, setText] = useState(editing ? editing.text : '');
   const [cat, setCat] = useCatSelection(editing ? editing.categoryId : null);
-  const [dateStr, setDateStr] = useState(isoLocal(new Date(editing ? editing.ts : Date.now())));
+  const [dateStr, setDateStr] = useState(editing ? isoLocal(new Date(editing.ts)) : addDay || isoLocal(new Date()));
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
