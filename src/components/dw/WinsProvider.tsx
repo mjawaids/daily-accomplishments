@@ -10,7 +10,22 @@ import { supabase } from '../../lib/supabase';
 import { offlineManager } from '../../lib/offline';
 import { trackAccomplishmentEvent, trackConnectivityEvent } from '../../lib/analytics';
 import { toWin } from '../../lib/winsData';
-import type { Category, Win } from '../../lib/winsData';
+import type { Win } from '../../lib/winsData';
+import {
+  DEFAULT_CATEGORIES,
+  MAX_CATEGORIES,
+  analyticsLabel,
+  categoryWriteFields,
+  createCategory,
+  deleteCategory,
+  ensureCategories,
+  readCachedCategories,
+  resolveCategory,
+  sortCategories,
+  updateCategory,
+  writeCachedCategories,
+} from '../../lib/categories';
+import type { Category, CategoryInput } from '../../lib/categories';
 import type { Database } from '../../lib/supabase';
 import {
   ensureUserSettings,
@@ -49,6 +64,9 @@ export interface Prefs {
   theme: Theme;
 }
 
+/** Which category the editor sheet is open on, if any. */
+export type CategorySheetState = { mode: 'add' } | { mode: 'edit'; id: string } | null;
+
 interface ToastState {
   msg: string;
   icon?: IconName;
@@ -72,8 +90,21 @@ export interface WinsContextValue {
   toast: ToastState | null;
   showToast: (msg: string, icon?: IconName) => void;
   celebrate: number;
-  addWin: (input: { text: string; category: Category; ts?: number }) => Promise<void>;
-  updateWin: (id: string, patch: { text: string; category: Category; ts: number }) => Promise<void>;
+  addWin: (input: { text: string; categoryId: string; ts?: number }) => Promise<void>;
+  updateWin: (id: string, patch: { text: string; categoryId: string; ts: number }) => Promise<void>;
+  /** The user's categories, in display order. Falls back to the defaults until
+      the real rows load (or while they cannot be reached). */
+  categories: Category[];
+  /** False while `categories` are the placeholder defaults, so they cannot be
+      edited yet. */
+  categoriesReady: boolean;
+  catById: (id: string) => Category;
+  categorySheet: CategorySheetState;
+  setCategorySheet: (s: CategorySheetState) => void;
+  addCategory: (input: CategoryInput) => Promise<boolean>;
+  editCategory: (id: string, input: CategoryInput) => Promise<boolean>;
+  /** Moves the category's wins into `moveTo`, then deletes it. */
+  removeCategory: (id: string, moveTo: string) => Promise<boolean>;
   deleteWin: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   onSignOut: () => void;
@@ -134,6 +165,10 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   const [pushState, setPushState] = useState<PushState>(() => getPushState());
   const [pushBusy, setPushBusy] = useState(false);
   const [pushUnreachable, setPushUnreachable] = useState(false);
+  const [cachedCategories] = useState(() => readCachedCategories(userId));
+  const [categories, setCategoriesRaw] = useState<Category[]>(() => cachedCategories || DEFAULT_CATEGORIES);
+  const [categoriesReady, setCategoriesReady] = useState(!!cachedCategories);
+  const [categorySheet, setCategorySheet] = useState<CategorySheetState>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -154,7 +189,31 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     setScreenRaw(s);
     setSheetOpen(false);
     setEditing(null);
+    setCategorySheet(null);
   }, []);
+
+  const setCategories = useCallback(
+    (next: Category[]) => {
+      const sorted = sortCategories(next);
+      setCategoriesRaw(sorted);
+      setCategoriesReady(true);
+      writeCachedCategories(userId, sorted);
+    },
+    [userId]
+  );
+
+  // Categories: seeded with the defaults on first run (see ensureCategories).
+  const loadCategories = useCallback(async () => {
+    if (!navigator.onLine) return;
+    const loaded = await ensureCategories(userId);
+    if (loaded && loaded.length) setCategories(loaded);
+  }, [userId, setCategories]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  const catById = useCallback((id: string) => resolveCategory(categories, id), [categories]);
 
   // Load the user's full win history (used by both Timeline and Insights).
   const loadEntries = useCallback(async () => {
@@ -207,6 +266,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       }
       await offlineManager.syncPendingOperations();
       if (hadPending) trackConnectivityEvent('sync');
+      loadCategories();
       loadEntries();
     };
     const handleOffline = () => trackConnectivityEvent('offline');
@@ -216,7 +276,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [loadEntries]);
+  }, [loadEntries, loadCategories]);
 
   // ---- notification settings ----------------------------------------------
   // Loads (creating on first run) the server-side settings row, keeps the stored
@@ -353,7 +413,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   }, []);
 
   const addWin = useCallback(
-    async ({ text, category, ts }: { text: string; category: Category; ts?: number }) => {
+    async ({ text, categoryId, ts }: { text: string; categoryId: string; ts?: number }) => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -361,45 +421,35 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       const createdAt = ts ? new Date(ts).toISOString() : undefined;
       const saved = await offlineManager.addAccomplishment({
         text: text.trim(),
-        category,
+        ...categoryWriteFields(categoryId),
         user_id: user.id,
         ...(createdAt ? { created_at: createdAt } : {}),
       });
       setEntries((prev) => [toWin(saved), ...prev].sort((a, b) => b.ts - a.ts));
       setCelebrate((c) => c + 1);
       showToast('Win logged — nice work!', 'check');
-      trackAccomplishmentEvent('add', category);
+      trackAccomplishmentEvent('add', analyticsLabel(resolveCategory(categories, categoryId)));
     },
-    [showToast]
+    [showToast, categories]
   );
 
   const updateWin = useCallback(
-    async (id: string, patch: { text: string; category: Category; ts: number }) => {
+    async (id: string, patch: { text: string; categoryId: string; ts: number }) => {
       const text = patch.text.trim();
       const createdAt = new Date(patch.ts).toISOString();
-      if (navigator.onLine) {
-        const { error } = await supabase
-          .from('accomplishments')
-          .update({ text, category: patch.category, created_at: createdAt, updated_at: new Date().toISOString() })
-          .eq('id', id);
-        if (error) {
-          console.error('Error updating accomplishment:', error);
-          return;
-        }
-      } else {
-        // Offline best-effort: text + date sync via the pending queue (category
-        // updates optimistically in local state only).
-        await offlineManager.updateAccomplishment(id, text, createdAt);
-      }
+      // Online: writes to Supabase. Offline, or if that fails: queues the edit
+      // (text, date and category) for sync. Either way the IndexedDB cache is
+      // updated, so the edit survives a reload while offline.
+      await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
       setEntries((prev) =>
         prev
-          .map((e) => (e.id === id ? { ...e, text, category: patch.category, ts: patch.ts } : e))
+          .map((e) => (e.id === id ? { ...e, text, categoryId: patch.categoryId, ts: patch.ts } : e))
           .sort((a, b) => b.ts - a.ts)
       );
       showToast('Entry updated', 'check');
-      trackAccomplishmentEvent('edit', patch.category);
+      trackAccomplishmentEvent('edit', analyticsLabel(resolveCategory(categories, patch.categoryId)));
     },
-    [showToast]
+    [showToast, categories]
   );
 
   const deleteWin = useCallback(
@@ -408,9 +458,9 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       await offlineManager.deleteAccomplishment(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
       showToast('Entry deleted', 'trash');
-      if (removed) trackAccomplishmentEvent('delete', removed.category);
+      if (removed) trackAccomplishmentEvent('delete', analyticsLabel(resolveCategory(categories, removed.categoryId)));
     },
-    [entries, showToast]
+    [entries, showToast, categories]
   );
 
   const clearAll = useCallback(async () => {
@@ -424,6 +474,76 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     setEntries([]);
     showToast('All entries cleared', 'trash');
   }, [entries, showToast]);
+
+  // ---- category management (online only: the offline queue covers wins, not
+  // categories) ----------------------------------------------------------------
+  const canManageCategories = useCallback((): boolean => {
+    if (!navigator.onLine) {
+      showToast("You're offline — categories can be changed once you reconnect", 'sync');
+      return false;
+    }
+    if (!categoriesReady) {
+      showToast('Categories are still loading — try again in a moment', 'sync');
+      loadCategories();
+      return false;
+    }
+    return true;
+  }, [categoriesReady, loadCategories, showToast]);
+
+  const addCategory = useCallback(
+    async (input: CategoryInput) => {
+      if (!canManageCategories()) return false;
+      if (categories.length >= MAX_CATEGORIES) {
+        showToast(`You can have up to ${MAX_CATEGORIES} categories`, 'flag');
+        return false;
+      }
+      const position = Math.max(-1, ...categories.map((c) => c.position)) + 1;
+      const created = await createCategory(userId, input, position);
+      if (!created) {
+        showToast("Couldn't add the category — please try again", 'flag');
+        return false;
+      }
+      setCategories([...categories, created]);
+      showToast('Category added', 'check');
+      return true;
+    },
+    [canManageCategories, categories, setCategories, showToast, userId]
+  );
+
+  const editCategory = useCallback(
+    async (id: string, input: CategoryInput) => {
+      if (!canManageCategories()) return false;
+      const updated = await updateCategory(id, input);
+      if (!updated) {
+        showToast("Couldn't save the category — please try again", 'flag');
+        return false;
+      }
+      setCategories(categories.map((c) => (c.id === id ? updated : c)));
+      showToast('Category updated', 'check');
+      return true;
+    },
+    [canManageCategories, categories, setCategories, showToast]
+  );
+
+  const removeCategory = useCallback(
+    async (id: string, moveTo: string) => {
+      if (!canManageCategories()) return false;
+      const ok = await deleteCategory(id, moveTo);
+      if (!ok) {
+        showToast("Couldn't delete the category — please try again", 'flag');
+        return false;
+      }
+      setCategories(categories.filter((c) => c.id !== id));
+      setEntries((prev) =>
+        prev.map((e) => (resolveCategory(categories, e.categoryId).id === id ? { ...e, categoryId: moveTo } : e))
+      );
+      showToast('Category deleted', 'trash');
+      // Refresh so the IndexedDB cache stops holding the deleted category id.
+      loadEntries();
+      return true;
+    },
+    [canManageCategories, categories, setCategories, showToast, loadEntries]
+  );
 
   const value: WinsContextValue = {
     loading,
@@ -444,6 +564,14 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     celebrate,
     addWin,
     updateWin,
+    categories,
+    categoriesReady,
+    catById,
+    categorySheet,
+    setCategorySheet,
+    addCategory,
+    editCategory,
+    removeCategory,
     deleteWin,
     clearAll,
     onSignOut,

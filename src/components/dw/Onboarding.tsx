@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Icon, Logo, CatGlyph } from './icons';
 import type { IconName } from './icons';
-import { CATS } from '../../lib/winsData';
-import type { Category } from '../../lib/winsData';
+import { DEFAULT_CATEGORIES, catColorVar, categoryColor } from '../../lib/categories';
+import type { Category } from '../../lib/categories';
 import { useDevice, useResolvedTheme, getStoredTheme } from './useDevice';
 
 interface Step {
@@ -39,8 +39,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const last = step === ONB.length - 1;
   const next = () => (last ? onDone() : setStep(step + 1));
 
-  const chipCats: Category[] = ['work', 'health', 'learning'];
-  const barCats: Category[] = ['work', 'health', 'personal'];
+  const byKey = (k: string) => DEFAULT_CATEGORIES.find((c) => c.legacy_key === k) as Category;
+  const chipCats = ['work', 'health', 'learning'].map(byKey);
+  const barCats = ['work', 'health', 'personal'].map(byKey);
 
   const art = (
     <div
@@ -66,11 +67,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               left: [16, 24, 130][i],
               animationDelay: i * 90 + 120 + 'ms',
               boxShadow: 'var(--shadow-sm)',
+              ...catColorVar(chipCats[i]),
             }}
-            data-cat={chipCats[i]}
           >
             <CatGlyph cat={chipCats[i]} size={17} />
-            {CATS[chipCats[i]].label}
+            {chipCats[i].name}
           </span>
         ))}
       {step === 1 && (
@@ -91,7 +92,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               width: 70 - i * 4,
               height: 8,
               borderRadius: 5,
-              background: `var(--cat-${barCats[i]})`,
+              background: categoryColor(barCats[i]),
               animationDelay: i * 100 + 120 + 'ms',
               opacity: 0.8,
             }}

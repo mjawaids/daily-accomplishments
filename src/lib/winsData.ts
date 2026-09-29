@@ -1,37 +1,30 @@
-/* DailyWins — category definitions + date/stat helpers.
+/* DailyWins — win view-model + date/stat helpers (categories: ./categories.ts).
    Ported from the Claude Design handoff (app/data.js) to TypeScript.
    Operates on a `Win` view-model derived from a Supabase Accomplishment. */
 
 import type { Database } from './supabase';
+import { legacyCategoryId, resolveCategory } from './categories';
+import type { Category } from './categories';
 
-export type Category = 'work' | 'personal' | 'learning' | 'health';
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
 
 export interface Win {
   id: string;
   text: string;
-  category: Category;
+  /** A categories.id, or `legacy:<key>` for a row cached before category_id
+      existed (see resolveCategory()). */
+  categoryId: string;
   /** epoch milliseconds, derived from created_at */
   ts: number;
 }
 
-export interface CatDef {
-  id: Category;
-  label: string;
-  color: string;
-}
-
-export const CATS: Record<Category, CatDef> = {
-  work: { id: 'work', label: 'Work', color: 'var(--cat-work)' },
-  personal: { id: 'personal', label: 'Personal', color: 'var(--cat-personal)' },
-  learning: { id: 'learning', label: 'Learning', color: 'var(--cat-learning)' },
-  health: { id: 'health', label: 'Health', color: 'var(--cat-health)' },
-};
-
-export const CATEGORY_KEYS = Object.keys(CATS) as Category[];
-
 export function toWin(a: Accomplishment): Win {
-  return { id: a.id, text: a.text, category: a.category, ts: new Date(a.created_at).getTime() };
+  return {
+    id: a.id,
+    text: a.text,
+    categoryId: a.category_id || legacyCategoryId(a.category || 'work'),
+    ts: new Date(a.created_at).getTime(),
+  };
 }
 
 function pad(n: number): string {
@@ -160,18 +153,27 @@ export function weekBars(entries: Win[]): WeekBar[] {
 }
 
 export interface CategoryMix {
-  id: Category;
-  label: string;
+  category: Category;
   count: number;
   pct: number;
 }
 
-export function categoryMix(entries: Win[]): CategoryMix[] {
-  const total = entries.length || 1;
-  return CATEGORY_KEYS.map((id) => {
-    const c = entries.filter((e) => e.category === id).length;
-    return { id, label: CATS[id].label, count: c, pct: Math.round((c / total) * 100) };
-  }).sort((a, b) => b.count - a.count);
+/** Wins per category, most-used first. Only categories with wins are listed
+    (a user can have up to 20), except that with no wins at all every category
+    is shown at 0%. Wins whose category cannot be resolved get their own
+    "Uncategorized" row so the percentages still add up. */
+export function categoryMix(entries: Win[], categories: Category[]): CategoryMix[] {
+  if (!entries.length) return categories.map((category) => ({ category, count: 0, pct: 0 }));
+  const buckets = new Map<string, { category: Category; count: number }>();
+  for (const e of entries) {
+    const category = resolveCategory(categories, e.categoryId);
+    const bucket = buckets.get(category.id) || { category, count: 0 };
+    bucket.count += 1;
+    buckets.set(category.id, bucket);
+  }
+  return [...buckets.values()]
+    .map(({ category, count }) => ({ category, count, pct: Math.round((count / entries.length) * 100) }))
+    .sort((a, b) => b.count - a.count || a.category.position - b.category.position);
 }
 
 export interface HeatCell {

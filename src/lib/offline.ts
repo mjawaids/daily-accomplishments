@@ -4,6 +4,9 @@ import type { Database } from './supabase';
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
 type AccomplishmentInsert = Database['public']['Tables']['accomplishments']['Insert'];
 
+/** A win's category as written to the database (see categoryWriteFields()). */
+export type CategoryFields = Pick<AccomplishmentInsert, 'category_id' | 'category'>;
+
 interface PendingAccomplishment extends Omit<AccomplishmentInsert, 'user_id'> {
   id: string;
   user_id: string;
@@ -150,11 +153,14 @@ class OfflineManager {
   }
 
   // Update accomplishment
-  async updateAccomplishment(id: string, text: string, createdAt?: string): Promise<void> {
+  async updateAccomplishment(id: string, text: string, createdAt?: string, category?: CategoryFields): Promise<void> {
     // Try to update online first
     if (navigator.onLine) {
       try {
-        const updateData: { text: string; created_at?: string; updated_at?: string } = { text };
+        const updateData: { text: string; created_at?: string; updated_at?: string } & CategoryFields = {
+          text,
+          ...category
+        };
         if (createdAt) {
           updateData.created_at = createdAt;
           updateData.updated_at = new Date().toISOString();
@@ -168,7 +174,7 @@ class OfflineManager {
         if (error) throw error;
 
         // Update cached version
-        await this.updateCachedAccomplishment(id, text, createdAt);
+        await this.updateCachedAccomplishment(id, text, createdAt, category);
         return;
       } catch (error) {
         console.log('Failed to update online, storing offline:', error);
@@ -180,10 +186,10 @@ class OfflineManager {
 
     const transaction = this.db!.transaction(['pending_updates'], 'readwrite');
     const store = transaction.objectStore('pending_updates');
-    await store.put({ id, text, synced: false });
+    await store.put({ id, text, created_at: createdAt, ...category, synced: false });
 
     // Update cached version optimistically
-    await this.updateCachedAccomplishment(id, text, createdAt);
+    await this.updateCachedAccomplishment(id, text, createdAt, category);
   }
 
   // Delete accomplishment
@@ -248,15 +254,33 @@ class OfflineManager {
         
         for (const accomplishment of pending) {
           try {
-            const { data, error } = await supabase
-              .from('accomplishments')
-              .insert({
-                text: accomplishment.text,
-                category: accomplishment.category,
-                user_id: accomplishment.user_id
-              })
-              .select()
-              .single();
+            const insert = (category: CategoryFields) =>
+              supabase
+                .from('accomplishments')
+                .insert({
+                  text: accomplishment.text,
+                  ...category,
+                  user_id: accomplishment.user_id,
+                  // keep the time the win was logged (or back-dated to)
+                  created_at: accomplishment.created_at
+                })
+                .select()
+                .single();
+
+            // Ops queued before category_id existed carry only the legacy
+            // text column; the database resolves it.
+            let { data, error } = await insert(
+              accomplishment.category_id
+                ? { category_id: accomplishment.category_id }
+                : { category: accomplishment.category }
+            );
+            // 23503: the category was deleted on another device while this
+            // one was offline. Fall back to the legacy column, which the
+            // database maps to a category that exists, rather than leaving
+            // the op stuck in the queue.
+            if (error?.code === '23503' && accomplishment.category_id) {
+              ({ data, error } = await insert({ category: accomplishment.category ?? 'work' }));
+            }
 
             if (error) throw error;
 
@@ -287,10 +311,24 @@ class OfflineManager {
         
         for (const update of pending) {
           try {
-            const { error } = await supabase
-              .from('accomplishments')
-              .update({ text: update.text })
-              .eq('id', update.id);
+            const base = {
+              text: update.text,
+              ...(update.created_at ? { created_at: update.created_at } : {})
+            };
+            const apply = (patch: typeof base & CategoryFields) =>
+              supabase.from('accomplishments').update(patch).eq('id', update.id);
+
+            let { error } = await apply({
+              ...base,
+              ...(update.category_id ? { category_id: update.category_id } : {}),
+              ...(!update.category_id && update.category ? { category: update.category } : {})
+            });
+            // 23503: the chosen category was deleted on another device while
+            // this one was offline — keep the win's current category instead
+            // of leaving the op stuck in the queue.
+            if (error?.code === '23503') {
+              ({ error } = await apply(base));
+            }
 
             if (error) throw error;
 
@@ -340,7 +378,12 @@ class OfflineManager {
     });
   }
 
-  private async updateCachedAccomplishment(id: string, text: string, createdAt?: string): Promise<void> {
+  private async updateCachedAccomplishment(
+    id: string,
+    text: string,
+    createdAt?: string,
+    category?: CategoryFields
+  ): Promise<void> {
     if (!this.db) return;
 
     const transaction = this.db.transaction(['accomplishments'], 'readwrite');
@@ -354,6 +397,13 @@ class OfflineManager {
           accomplishment.text = text;
           if (createdAt) {
             accomplishment.created_at = createdAt;
+          }
+          if (category?.category_id) {
+            accomplishment.category_id = category.category_id;
+          } else if (category?.category) {
+            // A placeholder default: drop the id so toWin() maps the legacy key.
+            accomplishment.category_id = null;
+            accomplishment.category = category.category;
           }
           accomplishment.updated_at = new Date().toISOString();
           await store.put(accomplishment);

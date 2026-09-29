@@ -3,8 +3,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDW } from './useDW';
 import { Icon, CatGlyph } from './icons';
-import { CATEGORY_KEYS, CATS, isoLocal, timeLabel } from '../../lib/winsData';
-import type { Category, DayGroup, Win } from '../../lib/winsData';
+import { isoLocal, timeLabel } from '../../lib/winsData';
+import type { DayGroup, Win } from '../../lib/winsData';
+import { catColorVar } from '../../lib/categories';
 import { relativeDay, dayLabel, shortDay } from '../../lib/winsData';
 
 export function Avatar({ size = 34 }: { size?: number }) {
@@ -25,36 +26,49 @@ export function Avatar({ size = 34 }: { size?: number }) {
   );
 }
 
+/** The picker's selection, falling back to the first category when the chosen
+    one is gone (deleted elsewhere) or the list only just loaded. */
+function useCatSelection(initial: string | null): [string, (id: string) => void] {
+  const { categories, catById } = useDW();
+  const [picked, setPicked] = useState<string | null>(initial);
+  const resolved = picked ? catById(picked).id : '';
+  const valid = categories.some((c) => c.id === resolved);
+  return [valid ? resolved : categories[0]?.id || '', setPicked];
+}
+
 interface CatPickerProps {
-  value: Category;
-  onChange: (c: Category) => void;
+  value: string;
+  onChange: (id: string) => void;
   small?: boolean;
 }
 
 export function CatPicker({ value, onChange, small }: CatPickerProps) {
+  const { categories } = useDW();
   return (
     <div className="dw-catpick">
-      {CATEGORY_KEYS.map((c) => (
+      {categories.map((c) => (
         <button
-          key={c}
+          key={c.id}
           type="button"
-          className={'dw-chip selectable' + (small ? ' sm' : '') + (value === c ? ' active' : '')}
-          data-cat={c}
-          onClick={() => onChange(c)}
+          className={'dw-chip selectable' + (small ? ' sm' : '') + (value === c.id ? ' active' : '')}
+          style={catColorVar(c)}
+          onClick={() => onChange(c.id)}
         >
           <CatGlyph cat={c} size={small ? 17 : 20} />
-          {CATS[c].label}
+          {c.name}
         </button>
       ))}
     </div>
   );
 }
 
-export function CatTag({ cat, small }: { cat: Category; small?: boolean }) {
+export function CatTag({ categoryId, small }: { categoryId: string; small?: boolean }) {
+  const { catById } = useDW();
+  const cat = catById(categoryId);
   return (
-    <span className={'dw-chip' + (small ? ' sm' : '')} data-cat={cat}>
+    <span className={'dw-chip' + (small ? ' sm' : '')} style={catColorVar(cat)}>
       <CatGlyph cat={cat} size={small ? 17 : 20} />
-      {CATS[cat].label}
+      {cat.name}
     </span>
   );
 }
@@ -74,7 +88,7 @@ export function EntryCard({ entry, style }: EntryCardProps) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="c-top">
             <span className="c-time">{timeLabel(entry.ts)}</span>
-            <CatTag cat={entry.category} small />
+            <CatTag categoryId={entry.categoryId} small />
           </div>
           <div className="c-body" style={{ fontSize: 14 }}>
             {entry.text}
@@ -87,7 +101,7 @@ export function EntryCard({ entry, style }: EntryCardProps) {
   return (
     <div className="dw-card" onClick={() => startEdit(entry)}>
       <div className="c-top">
-        <CatTag cat={entry.category} small />
+        <CatTag categoryId={entry.categoryId} small />
         <span className="c-time">{timeLabel(entry.ts)}</span>
       </div>
       <div className="c-body">{entry.text}</div>
@@ -123,7 +137,7 @@ export function DateHead({ group }: { group: DayGroup }) {
 export function QuickComposer() {
   const { addWin, openAdd } = useDW();
   const [text, setText] = useState('');
-  const [cat, setCat] = useState<Category>('work');
+  const [cat, setCat] = useCatSelection(null);
   const [focused, setFocused] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -137,8 +151,8 @@ export function QuickComposer() {
   }, [text]);
 
   const submit = () => {
-    if (!text.trim()) return;
-    addWin({ text, category: cat });
+    if (!text.trim() || !cat) return;
+    addWin({ text, categoryId: cat });
     setText('');
     setFocused(false);
     taRef.current?.blur();
@@ -188,7 +202,7 @@ export function EntryForm({ onDone }: { onDone: () => void }) {
   const { editing, addWin, updateWin, deleteWin } = useDW();
   const isEdit = !!editing;
   const [text, setText] = useState(editing ? editing.text : '');
-  const [cat, setCat] = useState<Category>(editing ? editing.category : 'work');
+  const [cat, setCat] = useCatSelection(editing ? editing.categoryId : null);
   const [dateStr, setDateStr] = useState(isoLocal(new Date(editing ? editing.ts : Date.now())));
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -202,15 +216,15 @@ export function EntryForm({ onDone }: { onDone: () => void }) {
   }, []);
 
   const save = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !cat) return;
     const [y, m, d] = dateStr.split('-').map(Number);
     const base = new Date(editing ? editing.ts : Date.now());
     base.setFullYear(y, m - 1, d);
     if (!isEdit) base.setHours(new Date().getHours(), new Date().getMinutes());
     if (isEdit && editing) {
-      updateWin(editing.id, { text: text.trim(), category: cat, ts: base.getTime() });
+      updateWin(editing.id, { text: text.trim(), categoryId: cat, ts: base.getTime() });
     } else {
-      addWin({ text, category: cat, ts: base.getTime() });
+      addWin({ text, categoryId: cat, ts: base.getTime() });
     }
     onDone();
   };
