@@ -13,10 +13,12 @@ import {
   groupByDay,
   heatCells,
   categoryMix,
+  dayKeyTs,
   dayLabel,
   filterWins,
   isoLocal,
   searchTerms,
+  shiftDayKey,
   shortDay,
   weekBars,
 } from '../../lib/winsData';
@@ -89,17 +91,6 @@ function ScreenHead({ device, title, subtitle, right }: ScreenHeadProps) {
   );
 }
 
-/** `YYYY-MM-DD` shifted by `delta` days (local calendar). */
-function shiftDay(day: string, delta: number): string {
-  const [y, m, d] = day.split('-').map(Number);
-  return isoLocal(new Date(y, m - 1, d + delta));
-}
-
-function dayTs(day: string): number {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Date(y, m - 1, d).getTime();
-}
-
 interface DayChipProps {
   day: string;
   setDay: (d: string | null) => void;
@@ -109,10 +100,10 @@ interface DayChipProps {
 // ---- the chosen day as a chip: previous / change / next / back to any day ----
 function DayChip({ day, setDay, onPick }: DayChipProps) {
   const today = isoLocal(new Date());
-  const long = dayLabel(dayTs(day));
+  const long = dayLabel(dayKeyTs(day));
   return (
     <span className="dw-chip dw-datechip set" style={stagger(0)}>
-      <button type="button" className="step" aria-label="Previous day" onClick={() => setDay(shiftDay(day, -1))}>
+      <button type="button" className="step" aria-label="Previous day" onClick={() => setDay(shiftDayKey(day, -1))}>
         <Icon name="chevL" size={15} sw={2.4} />
       </button>
       <button type="button" className="lbl" aria-label={`Change date, ${long}`} onClick={onPick}>
@@ -124,7 +115,7 @@ function DayChip({ day, setDay, onPick }: DayChipProps) {
         className="step"
         aria-label="Next day"
         disabled={day >= today}
-        onClick={() => setDay(shiftDay(day, 1))}
+        onClick={() => setDay(shiftDayKey(day, 1))}
       >
         <Icon name="chevR" size={15} sw={2.4} />
       </button>
@@ -283,7 +274,7 @@ export function Timeline({ device }: { device: Device }) {
   const open = panelOpen || filtering;
 
   const matches = useMemo(
-    () => filterWins(entries, { query, day, categoryIds: catIds }, (id) => catById(id).name),
+    () => filterWins(entries, { query, day, categoryIds: catIds }, catById),
     [entries, query, day, catIds, catById]
   );
   const groups = useMemo(() => groupByDay(matches), [matches]);
@@ -374,7 +365,7 @@ export function Timeline({ device }: { device: Device }) {
     `${matches.length} ${matches.length === 1 ? 'win' : 'wins'}`,
     terms.length ? `“${query.trim()}”` : '',
     catIds.map((id) => catById(id).name).join(', '),
-    day ? shortDay(dayTs(day)) : '',
+    day ? shortDay(dayKeyTs(day)) : '',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -434,7 +425,7 @@ export function Timeline({ device }: { device: Device }) {
           <Icon name={day && activeFilters === 1 ? 'calendar' : 'search'} size={28} />
           <p>
             {day && activeFilters === 1
-              ? `Nothing logged on ${dayLabel(dayTs(day))}.`
+              ? `Nothing logged on ${dayLabel(dayKeyTs(day))}.`
               : terms.length > 0 && activeFilters === 1
                 ? `No wins match “${query.trim()}”.`
                 : 'No wins match these filters.'}
@@ -442,7 +433,7 @@ export function Timeline({ device }: { device: Device }) {
           {day && activeFilters === 1 ? (
             <button className="dw-btn sm" onClick={() => openAddForDay(day)}>
               <Icon name="plus" size={16} sw={2.4} />
-              {`Log a win for ${shortDay(dayTs(day))}`}
+              {`Log a win for ${shortDay(dayKeyTs(day))}`}
             </button>
           ) : (
             <button className="dw-btn sm ghost" onClick={resetFilters}>
@@ -639,7 +630,7 @@ export function Insights({ device }: { device: Device }) {
               key={c.k}
               className="dw-heatcell"
               title={`${c.c} on ${c.k}`}
-              aria-label={`${c.c} ${c.c === 1 ? 'win' : 'wins'} on ${dayLabel(dayTs(c.k))}`}
+              aria-label={`${c.c} ${c.c === 1 ? 'win' : 'wins'} on ${dayLabel(dayKeyTs(c.k))}`}
               onClick={() => jumpToDay(c.k)}
               style={{
                 aspectRatio: '1',

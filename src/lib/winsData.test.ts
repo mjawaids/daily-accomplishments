@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 // winsData.ts imports categories.ts, which imports the Supabase client.
 vi.mock('./supabase', () => ({ supabase: {} }));
 
-import { dayKey, filterWins, highlightParts, searchTerms } from './winsData';
+import { legacyCategoryId, resolveCategory } from './categories';
+import type { Category } from './categories';
+import { dayKey, dayKeyTs, filterWins, highlightParts, searchTerms, shiftDayKey } from './winsData';
 import type { Win } from './winsData';
 
 const names: Record<string, string> = { w: 'Work', h: 'Health' };
-const catName = (id: string) => names[id] || 'Uncategorized';
+const catName = (id: string) => ({ id, name: names[id] || 'Uncategorized' });
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 const wins: Win[] = [
@@ -69,6 +71,52 @@ describe('filterWins', () => {
     expect(ids(filterWins(wins, { query: 'coffee', categoryIds: ['w'], day: '2026-09-27' }, catName))).toEqual(['3']);
     expect(ids(filterWins(wins, { query: 'coffee', categoryIds: ['h'], day: '2026-09-27' }, catName))).toEqual([]);
     expect(ids(filterWins(wins, { categoryIds: ['w'], day: dayKey(at(2026, 9, 28)) }, catName))).toEqual(['1']);
+  });
+});
+
+describe('filterWins with real categories', () => {
+  const work: Category = { id: 'c-work', name: 'Work', color: 'blue', icon: 'briefcase', position: 0, legacy_key: 'work' };
+  const side: Category = { id: 'c-side', name: 'Side project', color: 'amber', icon: 'star', position: 1, legacy_key: null };
+  const cats = [work, side];
+  const catById = (id: string) => resolveCategory(cats, id);
+  // A row cached before category_id existed carries a legacy id (see toWin()).
+  const legacy: Win = { id: 'L', text: 'Old report', categoryId: legacyCategoryId('work'), ts: at(2026, 9, 1) };
+  const current: Win = { id: 'C', text: 'New report', categoryId: 'c-work', ts: at(2026, 9, 2) };
+  const other: Win = { id: 'S', text: 'Side report', categoryId: 'c-side', ts: at(2026, 9, 3) };
+  const list = [legacy, current, other];
+
+  it('matches a legacy-id win against its real category chip', () => {
+    expect(ids(filterWins(list, { categoryIds: ['c-work'] }, catById))).toEqual(['L', 'C']);
+    expect(ids(filterWins(list, { categoryIds: ['c-side'] }, catById))).toEqual(['S']);
+  });
+
+  it('searches the resolved category name of a legacy-id win', () => {
+    expect(ids(filterWins(list, { query: 'work report' }, catById))).toEqual(['L', 'C']);
+  });
+});
+
+describe('day keys', () => {
+  it('shifts across month and year boundaries', () => {
+    expect(shiftDayKey('2026-09-30', 1)).toBe('2026-10-01');
+    expect(shiftDayKey('2026-03-01', -1)).toBe('2026-02-28');
+    expect(shiftDayKey('2024-03-01', -1)).toBe('2024-02-29');
+    expect(shiftDayKey('2026-12-31', 1)).toBe('2027-01-01');
+    expect(shiftDayKey('2027-01-01', -1)).toBe('2026-12-31');
+  });
+
+  it('steps one calendar day at a time over DST changes', () => {
+    // Covers both EU and US switch dates; a no-op in zones without DST.
+    for (const day of ['2026-03-08', '2026-03-29', '2026-10-25', '2026-11-01']) {
+      expect(shiftDayKey(shiftDayKey(day, 1), -1)).toBe(day);
+      expect(shiftDayKey(day, 1)).not.toBe(day);
+    }
+  });
+
+  it('dayKeyTs is local midnight and round-trips with dayKey', () => {
+    const ts = dayKeyTs('2026-09-27');
+    expect(new Date(ts).getHours()).toBe(0);
+    expect(dayKey(ts)).toBe('2026-09-27');
+    expect(dayKey(at(2026, 9, 27, 23))).toBe('2026-09-27');
   });
 });
 

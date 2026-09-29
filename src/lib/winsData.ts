@@ -48,6 +48,18 @@ export function dayKey(ts: number): string {
   return isoLocal(new Date(ts));
 }
 
+/** Local midnight of a `YYYY-MM-DD` day key (the inverse of dayKey()). */
+export function dayKeyTs(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+
+/** The day key `delta` calendar days after `day` (negative = before). */
+export function shiftDayKey(day: string, delta: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return isoLocal(new Date(y, m - 1, d + delta));
+}
+
 export function relativeDay(ts: number): string | null {
   const today = startOfDay(Date.now());
   const that = startOfDay(ts);
@@ -109,17 +121,23 @@ export interface WinFilter {
 
 /** Wins matching every search term (in the text or the category name), in
     one of `categoryIds` if any are given, and falling on `day` if given. An
-    empty filter keeps everything. */
-export function filterWins(entries: Win[], filter: WinFilter, categoryName: (categoryId: string) => string): Win[] {
+    empty filter keeps everything. `categoryOf` resolves a win's categoryId
+    (which may be a `legacy:` id) to its category, as catById does. */
+export function filterWins(
+  entries: Win[],
+  filter: WinFilter,
+  categoryOf: (categoryId: string) => { id: string; name: string }
+): Win[] {
   const terms = searchTerms(filter.query || '');
   const day = filter.day || null;
   const cats = filter.categoryIds && filter.categoryIds.length ? new Set(filter.categoryIds) : null;
   if (!terms.length && !day && !cats) return entries;
   return entries.filter((e) => {
     if (day && dayKey(e.ts) !== day) return false;
-    if (cats && !cats.has(e.categoryId)) return false;
+    const cat = categoryOf(e.categoryId);
+    if (cats && !cats.has(cat.id)) return false;
     if (!terms.length) return true;
-    const hay = foldText(e.text) + '\n' + foldText(categoryName(e.categoryId));
+    const hay = foldText(e.text) + '\n' + foldText(cat.name);
     return terms.every((t) => hay.includes(t));
   });
 }
