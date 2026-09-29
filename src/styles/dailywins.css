@@ -94,7 +94,7 @@
 .dw-scroll{flex:1; overflow-y:auto; overflow-x:hidden; scroll-behavior:smooth; position:relative}
 .dw-scroll::-webkit-scrollbar{width:10px}
 .dw-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid transparent;background-clip:padding-box}
-.dw-app button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+:where(.dw-app) button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 .dw-app input,.dw-app textarea,.dw-app select{font-family:inherit;color:inherit}
 .dw-display{font-family:var(--font-display);letter-spacing:-0.02em;line-height:1.04}
 .dw-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace}
