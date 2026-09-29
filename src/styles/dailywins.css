@@ -94,7 +94,7 @@
 .dw-app[data-device="desktop"]{ --pad:0px; flex-direction:row; }
 
 /* mobile: add safe spacing for status bar / home indicator (PWA full-screen) */
-.dw-app[data-device="mobile"] .dw-scroll{padding-top:max(12px, env(safe-area-inset-top))}
+.dw-app[data-device="mobile"] .dw-scroll{padding-top:max(12px, env(safe-area-inset-top));padding-left:var(--pad);padding-right:var(--pad)}
 
 /* ============================================================ DESKTOP shell */
 .dw-sidebar{
@@ -115,7 +115,7 @@
 .dw-logo .word b{color:var(--accent);font-weight:700}
 
 /* ============================================================ top header (mobile) */
-.dw-top{display:flex;align-items:center;justify-content:space-between;padding:6px var(--pad) 12px}
+.dw-top{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px}
 .dw-top .greet{font-size:13px;color:var(--muted);font-weight:600}
 .dw-top h1{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:-0.025em;margin-top:1px}
 .dw-iconbtn{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
@@ -176,7 +176,7 @@
 .dw-btn.icon{width:42px;padding:0}
 
 /* ============================================================ date group + timeline */
-.dw-feed{display:flex;flex-direction:column;gap:6px;padding:0 var(--pad)}
+.dw-feed{display:flex;flex-direction:column;gap:6px;padding:0}
 .dw-app[data-device="desktop"] .dw-feed{padding:0}
 .dw-datehead{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;
   padding:18px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
