@@ -36,6 +36,9 @@ let initPromise: Promise<boolean> | null = null;
    the user CAN fix it, by allowing this site. */
 let sdkBlocked = false;
 const listeners = new Set<(s: PushState) => void>();
+/* One-shot callbacks for an SDK that arrives after initOneSignal() already gave
+   up on it — see onSdkReady(). */
+const readyCallbacks = new Set<() => void>();
 
 function emit(): void {
   const s = getPushState();
@@ -141,6 +144,9 @@ export function initOneSignal(): Promise<boolean> {
             attachSdk(OneSignal);
             initPromise = Promise.resolve(true);
             emit();
+            const pending = [...readyCallbacks];
+            readyCallbacks.clear();
+            pending.forEach((cb) => cb());
           },
           (err) => {
             console.warn('[onesignal] SDK also failed after the timeout:', err);
@@ -160,6 +166,30 @@ export function initOneSignal(): Promise<boolean> {
     }
   })();
   return initPromise;
+}
+
+/** Runs cb once the SDK is attached: on the next microtask when it already is,
+    otherwise when an SDK that missed the init timeout finally loads. Returns an
+    unsubscribe, so a caller that goes away (sign-out, unmount) is never called
+    back.
+
+    For work that initOneSignal() returning false would otherwise skip for good:
+    the late SDK updates the push state by itself, but nothing else would re-run
+    the account setup that was waiting on it. */
+export function onSdkReady(cb: () => void): () => void {
+  if (sdk) {
+    let live = true;
+    queueMicrotask(() => {
+      if (live) cb();
+    });
+    return () => {
+      live = false;
+    };
+  }
+  readyCallbacks.add(cb);
+  return () => {
+    readyCallbacks.delete(cb);
+  };
 }
 
 export function getPushState(): PushState {
@@ -205,19 +235,32 @@ export async function logoutPush(): Promise<void> {
    without signing out, this browser's subscription stays aliased to them and
    keeps receiving their reminders. Called once at startup when there is no
    session. Loads the SDK only when this browser was actually aliased, so a
-   normal logged-out visit still pays nothing. */
-export async function clearPushAliasIfStale(): Promise<void> {
+   normal logged-out visit still pays nothing.
+
+   isSignedOut is asked again right before logging out, because the SDK can
+   arrive well after this call (see onSdkReady). Someone may have signed in by
+   then, and their alias must not be undone. */
+export async function clearPushAliasIfStale(isSignedOut: () => Promise<boolean>): Promise<void> {
   try {
     if (localStorage.getItem(ALIAS_FLAG) !== '1') return;
   } catch {
     return;
   }
-  if (!(await initOneSignal()) || !sdk) return;
-  try {
-    await sdk.logout();
-    setAliasFlag(false);
-  } catch (err) {
-    console.error('[onesignal] stale alias cleanup failed:', err);
+  const clear = async () => {
+    if (!sdk || !(await isSignedOut())) return;
+    try {
+      await sdk.logout();
+      setAliasFlag(false);
+    } catch (err) {
+      console.error('[onesignal] stale alias cleanup failed:', err);
+    }
+  };
+  if (await initOneSignal()) {
+    await clear();
+  } else {
+    // Slow network rather than a blocker: the SDK may still turn up, and this
+    // cleanup is exactly what must not be skipped on a shared device.
+    onSdkReady(() => void clear());
   }
 }
 

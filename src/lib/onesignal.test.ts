@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fake = vi.hoisted(() => ({
   init: vi.fn<() => Promise<void>>(),
+  login: vi.fn<() => Promise<void>>(),
+  logout: vi.fn<() => Promise<void>>(),
   Notifications: { addEventListener: vi.fn(), requestPermission: vi.fn() },
   User: { PushSubscription: { optedIn: false, addEventListener: vi.fn(), optIn: vi.fn() } },
 }));
@@ -19,6 +21,12 @@ async function load(permission: Permission = 'default') {
   vi.stubGlobal('PushManager', function PushManager() {});
   vi.stubGlobal('navigator', { serviceWorker: {}, userAgent: '' });
   vi.stubGlobal('window', globalThis);
+  const store = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  });
   vi.stubEnv('VITE_ONESIGNAL_APP_ID', 'test-app-id');
   vi.resetModules();
   return import('./onesignal');
@@ -52,6 +60,8 @@ beforeEach(() => {
   // queueMicrotask, …) also stalls the module runner's dynamic import.
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   vi.clearAllMocks();
+  fake.login.mockResolvedValue(undefined);
+  fake.logout.mockResolvedValue(undefined);
   vi.spyOn(console, 'error').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
@@ -160,5 +170,100 @@ describe('getPushState', () => {
     expect(m.getPushState()).toBe('unsupported');
     await expect(m.initOneSignal()).resolves.toBe(false);
     expect(fake.init).not.toHaveBeenCalled();
+  });
+});
+
+/** Starts initOneSignal() with an SDK that misses the 10s timeout. Resolve the
+    returned handle to make it arrive late. */
+async function timedOut(m: Awaited<ReturnType<typeof load>>) {
+  const d = deferred();
+  fake.init.mockReturnValue(d.promise);
+  const result = m.initOneSignal();
+  await untilInitCalled();
+  await vi.advanceTimersByTimeAsync(10_000);
+  await expect(result).resolves.toBe(false);
+  return d;
+}
+
+/** Lets the late adoption's promise chain and any queued microtasks run. */
+const settle = () => vi.advanceTimersByTimeAsync(0);
+
+describe('onSdkReady', () => {
+  it('runs waiting callbacks once a late SDK is adopted', async () => {
+    const m = await load();
+    const d = await timedOut(m);
+    const cb = vi.fn();
+    m.onSdkReady(cb);
+
+    await settle();
+    expect(cb).not.toHaveBeenCalled();
+    d.resolve();
+    await settle();
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it('never runs a callback that was unsubscribed first', async () => {
+    const m = await load();
+    const d = await timedOut(m);
+    const cb = vi.fn();
+    const stop = m.onSdkReady(cb);
+
+    stop();
+    d.resolve();
+    await settle();
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it('runs on the next microtask when the SDK is already attached', async () => {
+    fake.init.mockResolvedValue(undefined);
+    const m = await load();
+    await m.initOneSignal();
+    const cb = vi.fn();
+
+    m.onSdkReady(cb);
+    expect(cb).not.toHaveBeenCalled();
+    await settle();
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('clearPushAliasIfStale', () => {
+  /** Starts the cleanup with an SDK that misses the timeout; resolve to deliver it. */
+  async function staleClearTimedOut(m: Awaited<ReturnType<typeof load>>, signedOut: () => boolean) {
+    localStorage.setItem('dw_push_aliased', '1');
+    const d = deferred();
+    fake.init.mockReturnValue(d.promise);
+    const pending = m.clearPushAliasIfStale(async () => signedOut());
+    await untilInitCalled();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await pending;
+    expect(fake.logout).not.toHaveBeenCalled();
+    return d;
+  }
+
+  it('still clears a stale alias when the SDK arrives after the timeout', async () => {
+    const m = await load();
+    const d = await staleClearTimedOut(m, () => true);
+
+    d.resolve();
+    await settle();
+    expect(fake.logout).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('dw_push_aliased')).toBeNull();
+  });
+
+  it('leaves the alias alone if someone signed in before the SDK arrived', async () => {
+    const m = await load();
+    let signedOut = true;
+    const d = await staleClearTimedOut(m, () => signedOut);
+
+    // What WinsProvider does on sign-in: wait for the SDK, then log in.
+    signedOut = false;
+    m.onSdkReady(() => void m.loginPushAlias('new-alias'));
+    d.resolve();
+    await settle();
+
+    expect(fake.logout).not.toHaveBeenCalled();
+    expect(fake.login).toHaveBeenCalledWith('new-alias');
+    expect(localStorage.getItem('dw_push_aliased')).toBe('1');
   });
 });

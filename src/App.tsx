@@ -21,6 +21,10 @@ type AuthMode = 'signin' | 'signup';
 
 const ONBOARDED_KEY = 'dw_onboarded';
 
+/** Read at the moment it matters, not captured: the stale-alias cleanup can run
+    long after it was requested (see clearPushAliasIfStale). */
+const isSignedOut = async () => !(await supabase.auth.getSession()).data.session;
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +40,7 @@ function App() {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
       setLoading(false);
-      if (!session?.user) void clearPushAliasIfStale();
+      if (!session?.user) void clearPushAliasIfStale(isSignedOut);
     });
 
     // Listen for auth changes
@@ -55,7 +59,7 @@ function App() {
       // their own push_enabled is true.
       // Flag-guarded, so this is a no-op (and loads nothing) on a browser that
       // was never aliased.
-      if (!session?.user) void clearPushAliasIfStale();
+      if (!session?.user) void clearPushAliasIfStale(isSignedOut);
     });
 
     return () => subscription.unsubscribe();
