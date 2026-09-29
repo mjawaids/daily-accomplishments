@@ -16,7 +16,8 @@ Each Netlify deploy's message starts with the version and commit SHA
 Semantic versioning, with `package.json` as the source of truth. The change
 itself bumps the version (major/minor/patch chosen from what it does; rules in
 [`CLAUDE.md`](CLAUDE.md#versioning)), and the `version` check in `ci.yml`
-fails a PR that doesn't raise it above `main`'s. On deploy, the version is
+fails a PR that doesn't raise it above `main`'s (PRs touching only `*.md`,
+`docs/` or `.github/` are exempt). On deploy, the version is
 baked into the build (shown in the profile footer), then, after Netlify
 succeeds, the workflow pushes the `vX.Y.Z` tag and creates a GitHub Release
 with generated notes. A failed deploy consumes no tag, and a manual redeploy

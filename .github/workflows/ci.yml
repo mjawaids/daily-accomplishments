@@ -26,8 +26,8 @@ jobs:
       - run: npm run typecheck:functions
       - run: npm run build
 
-  # Every PR into main deploys on merge, so every PR must carry a version bump
-  # in package.json (rules: CLAUDE.md > Versioning).
+  # PRs that change the app must carry a version bump in package.json (rules:
+  # CLAUDE.md > Versioning). Docs-only and CI-only PRs are exempt.
   version:
     runs-on: ubuntu-latest
     steps:
@@ -36,6 +36,12 @@ jobs:
           fetch-depth: 0
       - name: Require a package.json version bump
         run: |
+          # Docs-only and CI-only PRs are exempt (nothing user-facing changes).
+          if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+              | grep -qvE '^(\.github/|docs/|.*\.md$)'; then
+            echo "Docs/CI-only change; no version bump required."
+            exit 0
+          fi
           base=$(git show "origin/${{ github.base_ref }}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0)).version")
           head=$(node -p "require('./package.json').version")
           echo "base $base, this PR $head"
