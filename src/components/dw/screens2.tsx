@@ -374,7 +374,7 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       <div className="dw-credit">
-        DailyWins · v0.1
+        DailyWins · v{__APP_VERSION__}
         <br />
         Developed with ❤️ by{' '}
         <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
