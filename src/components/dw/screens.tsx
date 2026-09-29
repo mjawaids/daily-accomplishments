@@ -91,37 +91,80 @@ function ScreenHead({ device, title, subtitle, right }: ScreenHeadProps) {
   );
 }
 
-interface DayChipProps {
-  day: string;
+interface DateInputProps {
+  day: string | null;
   setDay: (d: string | null) => void;
-  onPick: () => void;
+  label: string;
 }
 
-// ---- the chosen day as a chip: previous / change / next / back to any day ----
-function DayChip({ day, setDay, onPick }: DayChipProps) {
-  const today = isoLocal(new Date());
-  const long = dayLabel(dayKeyTs(day));
+/** The real, labelled date input, laid invisibly over its chip: screen
+    readers and the keyboard reach the native control, and a click or
+    Enter / Space opens the browser's picker. */
+function DateInput({ day, setDay, label }: DateInputProps) {
+  const openPicker = (el: HTMLInputElement) => {
+    try {
+      el.showPicker();
+    } catch {
+      /* unsupported, or already open: the field still takes typed dates */
+    }
+  };
   return (
-    <span className="dw-chip dw-datechip set" style={stagger(0)}>
-      <button type="button" className="step" aria-label="Previous day" onClick={() => setDay(shiftDayKey(day, -1))}>
-        <Icon name="chevL" size={15} sw={2.4} />
-      </button>
-      <button type="button" className="lbl" aria-label={`Change date, ${long}`} onClick={onPick}>
-        <Icon name="calendar" size={14} sw={2.1} />
-        {long.replace(/^(\w{3})\w*/, '$1')}
-      </button>
-      <button
-        type="button"
-        className="step"
-        aria-label="Next day"
-        disabled={day >= today}
-        onClick={() => setDay(shiftDayKey(day, 1))}
-      >
-        <Icon name="chevR" size={15} sw={2.4} />
-      </button>
-      <button type="button" className="x" aria-label="Any day (clear date)" onClick={() => setDay(null)}>
-        <Icon name="x" size={13} sw={2.4} />
-      </button>
+    <input
+      type="date"
+      className="dw-dateinput"
+      aria-label={label}
+      max={isoLocal(new Date())}
+      value={day || ''}
+      onChange={(e) => setDay(e.target.value || null)}
+      onClick={(e) => openPicker(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        openPicker(e.currentTarget);
+      }}
+    />
+  );
+}
+
+interface DateChipProps {
+  day: string | null;
+  setDay: (d: string | null) => void;
+}
+
+// ---- date filter chip: "Any day", or the chosen day with previous / next /
+// back to any day. One element for both states, so the date input keeps focus
+// while a date is typed into it. ----
+function DateChip({ day, setDay }: DateChipProps) {
+  const today = isoLocal(new Date());
+  return (
+    <span className={'dw-chip dw-datechip' + (day ? ' set' : '')} style={stagger(0)}>
+      {day && (
+        <button type="button" className="step" aria-label="Previous day" onClick={() => setDay(shiftDayKey(day, -1))}>
+          <Icon name="chevL" size={15} sw={2.4} />
+        </button>
+      )}
+      <span className="lbl">
+        <Icon name="calendar" size={day ? 14 : 15} sw={day ? 2.1 : 2} />
+        <span aria-hidden="true">{day ? dayLabel(dayKeyTs(day)).replace(/^(\w{3})\w*/, '$1') : 'Any day'}</span>
+        {!day && <Icon name="chevD" size={13} sw={2.4} />}
+        <DateInput day={day} setDay={setDay} label="Filter by date" />
+      </span>
+      {day && (
+        <button
+          type="button"
+          className="step"
+          aria-label="Next day"
+          disabled={day >= today}
+          onClick={() => setDay(shiftDayKey(day, 1))}
+        >
+          <Icon name="chevR" size={15} sw={2.4} />
+        </button>
+      )}
+      {day && (
+        <button type="button" className="x" aria-label="Any day (clear date)" onClick={() => setDay(null)}>
+          <Icon name="x" size={13} sw={2.4} />
+        </button>
+      )}
     </span>
   );
 }
@@ -142,16 +185,6 @@ interface FilterPanelProps {
 // ---- search field + one row of filter chips: date, then categories ----
 function FilterPanel({ open, inputRef, query, setQuery, day, setDay, catIds, toggleCat, onEscape }: FilterPanelProps) {
   const { categories } = useDW();
-  const dateRef = useRef<HTMLInputElement>(null);
-  const openPicker = () => {
-    const el = dateRef.current;
-    if (!el) return;
-    try {
-      el.showPicker();
-    } catch {
-      el.focus();
-    }
-  };
   return (
     <div id="dw-filterpanel" className={'dw-collapse bleed' + (open ? ' open' : '')}>
       <div>
@@ -192,21 +225,7 @@ function FilterPanel({ open, inputRef, query, setQuery, day, setDay, catIds, tog
               )}
             </div>
             <div className="dw-filterrow" role="group" aria-label="Filters">
-              {day ? (
-                <DayChip day={day} setDay={setDay} onPick={openPicker} />
-              ) : (
-                <button
-                  type="button"
-                  className="dw-chip dw-datechip"
-                  style={stagger(0)}
-                  aria-label="Filter by date: any day"
-                  onClick={openPicker}
-                >
-                  <Icon name="calendar" size={15} sw={2} />
-                  Any day
-                  <Icon name="chevD" size={13} sw={2.4} />
-                </button>
-              )}
+              <DateChip day={day} setDay={setDay} />
               <span className="sep" style={stagger(1)} />
               {categories.map((c, i) => {
                 const on = catIds.includes(c.id);
@@ -225,16 +244,6 @@ function FilterPanel({ open, inputRef, query, setQuery, day, setDay, catIds, tog
                 );
               })}
             </div>
-            <input
-              ref={dateRef}
-              className="dw-datepick"
-              type="date"
-              tabIndex={-1}
-              aria-hidden="true"
-              max={isoLocal(new Date())}
-              value={day || ''}
-              onChange={(e) => setDay(e.target.value || null)}
-            />
           </div>
         </div>
       </div>
@@ -308,7 +317,8 @@ export function Timeline({ device }: { device: Device }) {
   };
   const toggleCat = (id: string) => {
     setPanelOpen(true);
-    setPickedCats(catIds.includes(id) ? catIds.filter((c) => c !== id) : [...catIds, id]);
+    // Functional update: two quick toggles must not both start from the same render.
+    setPickedCats((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   };
   const setDayKeepOpen = (d: string | null) => {
     setPanelOpen(true);

@@ -292,18 +292,24 @@
 .dw-collapse.open .dw-filterrow>*{opacity:1;transform:none;transition-delay:calc(60ms + var(--i, 0) * 35ms),calc(60ms + var(--i, 0) * 35ms),0s,0s,0s}
 
 /* date chip: "Any day" (dashed) or the chosen day with ‹ › × */
-.dw-datechip{display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-style:dashed;border-color:var(--faint);
+.dw-datechip{display:inline-flex;align-items:center;gap:0;padding:0;border-style:dashed;border-color:var(--faint);
   color:var(--ink-2);background:transparent}
 .dw-datechip:hover{border-color:var(--muted);color:var(--ink)}
-.dw-datechip.set{gap:0;padding:0 2px;border:1px solid color-mix(in oklab,var(--accent) 28%,transparent);
+.dw-datechip .lbl{position:relative;display:inline-flex;align-items:center;gap:6px;height:100%;padding:0 10px;
+  border-radius:999px;white-space:nowrap}
+.dw-datechip.set{padding:0 2px;border:1px solid color-mix(in oklab,var(--accent) 28%,transparent);
   background:var(--accent-soft);color:var(--accent-text)}
+.dw-datechip.set .lbl{padding:0 3px;font-weight:700}
 .dw-datechip.set button{height:100%;display:inline-flex;align-items:center;justify-content:center;color:inherit;border-radius:999px}
 .dw-datechip.set .step{width:28px}
 .dw-datechip.set .step:disabled{opacity:.35;cursor:not-allowed}
-.dw-datechip.set .lbl{gap:6px;padding:0 3px;font-weight:700;white-space:nowrap}
 .dw-datechip.set .x{width:30px}
-.dw-datechip.set button:hover:not(:disabled){background:color-mix(in oklab,var(--accent) 12%,transparent)}
-.dw-datepick{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.dw-datechip.set button:hover:not(:disabled),.dw-datechip.set .lbl:hover{background:color-mix(in oklab,var(--accent) 12%,transparent)}
+/* the real date input lies invisibly over the chip's label */
+.dw-dateinput{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;
+  cursor:pointer;font-size:16px}
+.dw-dateinput::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;cursor:pointer}
+.dw-datechip .lbl:has(.dw-dateinput:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 
 .dw-clear{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:9px;
   font-size:12.5px;font-weight:700;color:var(--accent-text)}
