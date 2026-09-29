@@ -8,8 +8,26 @@ Actions from the `main` branch. Nothing else deploys or changes the schema.
 | Pull request into `main` | `.github/workflows/ci.yml` | lint, function typecheck, build; `supabase db push --dry-run` against production (read-only) |
 | Push to `main` | `.github/workflows/deploy.yml` | `supabase db push`, then `netlify deploy --prod` (builds with Netlify's production env vars) |
 
-Each Netlify deploy's message starts with the commit SHA, so the live
-version is always traceable to a commit.
+Each Netlify deploy's message starts with the version and commit SHA
+(`v1.4.2 <sha>: ...`), so the live version is always traceable to a commit.
+
+## Versioning
+
+Every deploy gets a [semantic version](https://semver.org): the latest `v*`
+git tag plus a bump. After a successful deploy the workflow pushes the tag
+and creates a GitHub Release with generated notes. **Tags and releases are the
+source of truth**; `package.json` in git is not updated (the workflow stamps it
+in the build only), and a failed deploy consumes no version.
+
+| Bump | Use for |
+|---|---|
+| major | Breaking or user-visible incompatible changes (e.g. data model changes users must notice) |
+| minor | New features, backward compatible |
+| patch | Bug fixes and small tweaks |
+
+A push to `main` always deploys a **patch**. To ship a minor or major, run
+GitHub > Actions > Deploy > Run workflow (branch `main`) and choose the
+`bump`. That run deploys the current `main`.
 
 ## Rules
 
