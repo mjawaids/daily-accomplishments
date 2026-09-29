@@ -4,8 +4,8 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { trackAuthEvent } from '../../lib/analytics';
-import { Icon, Logo, CAT_ICON } from './icons';
-import { CATEGORY_KEYS, CATS } from '../../lib/winsData';
+import { Icon, Logo } from './icons';
+import { DEFAULT_CATEGORIES } from '../../lib/categories';
 import { useDevice, useResolvedTheme, getStoredTheme } from './useDevice';
 
 type Mode = 'signin' | 'signup';
@@ -97,9 +97,9 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
             </p>
             {device === 'desktop' && (
               <div style={{ display: 'flex', gap: 8, marginTop: 26, flexWrap: 'wrap' }}>
-                {CATEGORY_KEYS.map((c) => (
+                {DEFAULT_CATEGORIES.map((c) => (
                   <span
-                    key={c}
+                    key={c.id}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -111,8 +111,8 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
                       fontWeight: 600,
                     }}
                   >
-                    <Icon name={CAT_ICON[c]} size={15} sw={2.2} />
-                    {CATS[c].label}
+                    <Icon name={c.icon} size={15} sw={2.2} />
+                    {c.name}
                   </span>
                 ))}
               </div>

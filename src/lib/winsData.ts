@@ -1,37 +1,30 @@
-/* DailyWins — category definitions + date/stat helpers.
+/* DailyWins — win view-model + date/stat helpers (categories: ./categories.ts).
    Ported from the Claude Design handoff (app/data.js) to TypeScript.
    Operates on a `Win` view-model derived from a Supabase Accomplishment. */
 
 import type { Database } from './supabase';
+import { legacyCategoryId, resolveCategory } from './categories';
+import type { Category } from './categories';
 
-export type Category = 'work' | 'personal' | 'learning' | 'health';
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
 
 export interface Win {
   id: string;
   text: string;
-  category: Category;
+  /** A categories.id, or `legacy:<key>` for a row cached before category_id
+      existed (see resolveCategory()). */
+  categoryId: string;
   /** epoch milliseconds, derived from created_at */
   ts: number;
 }
 
-export interface CatDef {
-  id: Category;
-  label: string;
-  color: string;
-}
-
-export const CATS: Record<Category, CatDef> = {
-  work: { id: 'work', label: 'Work', color: 'var(--cat-work)' },
-  personal: { id: 'personal', label: 'Personal', color: 'var(--cat-personal)' },
-  learning: { id: 'learning', label: 'Learning', color: 'var(--cat-learning)' },
-  health: { id: 'health', label: 'Health', color: 'var(--cat-health)' },
-};
-
-export const CATEGORY_KEYS = Object.keys(CATS) as Category[];
-
 export function toWin(a: Accomplishment): Win {
-  return { id: a.id, text: a.text, category: a.category, ts: new Date(a.created_at).getTime() };
+  return {
+    id: a.id,
+    text: a.text,
+    categoryId: a.category_id || legacyCategoryId(a.category || 'work'),
+    ts: new Date(a.created_at).getTime(),
+  };
 }
 
 function pad(n: number): string {
@@ -160,18 +153,24 @@ export function weekBars(entries: Win[]): WeekBar[] {
 }
 
 export interface CategoryMix {
-  id: Category;
-  label: string;
+  category: Category;
   count: number;
   pct: number;
 }
 
-export function categoryMix(entries: Win[]): CategoryMix[] {
+export function categoryMix(entries: Win[], categories: Category[]): CategoryMix[] {
   const total = entries.length || 1;
-  return CATEGORY_KEYS.map((id) => {
-    const c = entries.filter((e) => e.category === id).length;
-    return { id, label: CATS[id].label, count: c, pct: Math.round((c / total) * 100) };
-  }).sort((a, b) => b.count - a.count);
+  const counts = new Map<string, number>();
+  for (const e of entries) {
+    const id = resolveCategory(categories, e.categoryId).id;
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  return categories
+    .map((category) => {
+      const count = counts.get(category.id) || 0;
+      return { category, count, pct: Math.round((count / total) * 100) };
+    })
+    .sort((a, b) => b.count - a.count);
 }
 
 export interface HeatCell {

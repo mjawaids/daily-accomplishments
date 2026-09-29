@@ -9,6 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+type LegacyCategory = 'work' | 'personal' | 'learning' | 'health';
+
 export type Database = {
   public: {
     Tables: {
@@ -17,7 +19,11 @@ export type Database = {
           id: string;
           user_id: string;
           text: string;
-          category: 'work' | 'personal' | 'learning' | 'health';
+          category_id: string;
+          /** Legacy compatibility column: the category's legacy_key, or null for
+              a custom category. Resolved to category_id by a trigger when an old
+              client writes only this. */
+          category: LegacyCategory | null;
           created_at: string;
           updated_at: string;
         };
@@ -25,7 +31,8 @@ export type Database = {
           id?: string;
           user_id: string;
           text: string;
-          category: 'work' | 'personal' | 'learning' | 'health';
+          category_id?: string;
+          category?: LegacyCategory | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -33,9 +40,38 @@ export type Database = {
           id?: string;
           user_id?: string;
           text?: string;
-          category?: 'work' | 'personal' | 'learning' | 'health';
+          category_id?: string;
+          category?: LegacyCategory | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      categories: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          color: string;
+          icon: string;
+          position: number;
+          legacy_key: LegacyCategory | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          color: string;
+          icon: string;
+          position?: number;
+          legacy_key?: LegacyCategory | null;
+        };
+        Update: {
+          name?: string;
+          color?: string;
+          icon?: string;
+          position?: number;
         };
       };
       user_settings: {

@@ -15,6 +15,7 @@ import {
   isoLocal,
   weekBars,
 } from '../../lib/winsData';
+import { catColorVar, categoryColor } from '../../lib/categories';
 import { Empty } from './screens2';
 
 function greeting(): string {
@@ -90,7 +91,7 @@ function ScreenHead({ device, title, subtitle, right }: ScreenHeadProps) {
 
 // ============================================ TIMELINE
 export function Timeline({ device }: { device: Device }) {
-  const { entries, prefs, visibleDays, setVisibleDays, setScreen } = useDW();
+  const { entries, prefs, visibleDays, setVisibleDays, setScreen, catById } = useDW();
 
   const groups = useMemo(() => groupByDay(entries), [entries]);
   const shown = groups.slice(0, visibleDays);
@@ -135,8 +136,10 @@ export function Timeline({ device }: { device: Device }) {
                   <div
                     key={e.id}
                     className={'dw-node' + (gi === 0 && i < 3 ? ' dw-rise' : '')}
-                    data-cat={e.category}
-                    style={gi === 0 && i < 3 ? { animationDelay: i * 60 + 'ms' } : undefined}
+                    style={{
+                      ...catColorVar(catById(e.categoryId)),
+                      ...(gi === 0 && i < 3 ? { animationDelay: i * 60 + 'ms' } : {}),
+                    }}
                   >
                     <EntryCard entry={e} style="rail" />
                   </div>
@@ -178,13 +181,13 @@ export function Timeline({ device }: { device: Device }) {
 
 // ============================================ INSIGHTS
 export function Insights({ device }: { device: Device }) {
-  const { entries, setScreen } = useDW();
+  const { entries, setScreen, categories } = useDW();
   const streak = computeStreak(entries);
   const thisWeek = entriesThisWeek(entries);
   const total = entries.length;
   const bars = weekBars(entries);
   const maxBar = Math.max(1, ...bars.map((b) => b.count));
-  const mix = categoryMix(entries);
+  const mix = categoryMix(entries, categories);
   const cells = heatCells(entries);
   const maxCell = Math.max(1, ...cells.map((c) => c.c));
   const bestDay = bars.reduce((a, b) => (b.count > a.count ? b : a), bars[0] || { count: 0, label: '' });
@@ -264,11 +267,26 @@ export function Insights({ device }: { device: Device }) {
         <div className="dw-section-label">Category mix</div>
         <div className="dw-mix">
           {mix.map((m) => (
-            <div key={m.id} className="m">
-              <CatGlyph cat={m.id} size={22} />
-              <span style={{ fontSize: 13.5, fontWeight: 600, width: device === 'desktop' ? 90 : 74 }}>{m.label}</span>
+            <div key={m.category.id} className="m">
+              <CatGlyph cat={m.category} size={22} />
+              <span
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  width: device === 'desktop' ? 90 : 74,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+                title={m.category.name}
+              >
+                {m.category.name}
+              </span>
               <div className="track">
-                <div className="fill" style={{ width: mounted ? m.pct + '%' : '0%', background: `var(--cat-${m.id})` }} />
+                <div
+                  className="fill"
+                  style={{ width: mounted ? m.pct + '%' : '0%', background: categoryColor(m.category) }}
+                />
               </div>
               <span className="pct">{m.pct}%</span>
             </div>
@@ -312,7 +330,7 @@ export function Insights({ device }: { device: Device }) {
           <Icon name="spark" size={20} />
         </div>
         <div style={{ flex: 1 }}>
-          <div className="t">{mix[0] && mix[0].count ? `${mix[0].label} is your top theme` : 'Start logging to see patterns'}</div>
+          <div className="t">{mix[0] && mix[0].count ? `${mix[0].category.name} is your top theme` : 'Start logging to see patterns'}</div>
           <div className="s">
             {mix[0] && mix[0].count
               ? `${mix[0].pct}% of your wins. A balanced week mixes work with health & personal.`

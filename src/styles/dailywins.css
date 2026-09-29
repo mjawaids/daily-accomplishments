@@ -11,11 +11,21 @@
   --font-display:'Bricolage Grotesque', Georgia, serif;
   --font-body:'Hanken Grotesque', system-ui, sans-serif;
 
-  /* fixed category accents (OKLCH, shared C+L, hue varies) */
-  --cat-work:oklch(0.60 0.13 250);
-  --cat-personal:oklch(0.64 0.15 18);
-  --cat-learning:oklch(0.58 0.14 300);
-  --cat-health:oklch(0.62 0.12 152);
+  /* category palette (OKLCH, shared C+L, hue varies). Users pick one per
+     category; keys match CATEGORY_COLORS in src/lib/categories.ts. */
+  --cat-blue:oklch(0.60 0.13 250);
+  --cat-rose:oklch(0.64 0.15 18);
+  --cat-violet:oklch(0.58 0.14 300);
+  --cat-green:oklch(0.62 0.12 152);
+  --cat-amber:oklch(0.68 0.13 75);
+  --cat-teal:oklch(0.60 0.10 200);
+  --cat-orange:oklch(0.65 0.15 45);
+  --cat-slate:oklch(0.55 0.03 250);
+  /* the original fixed accents, still used as UI colors (danger, confetti) */
+  --cat-work:var(--cat-blue);
+  --cat-personal:var(--cat-rose);
+  --cat-learning:var(--cat-violet);
+  --cat-health:var(--cat-green);
 
   /* brand accent (overridden per data-accent) */
   --accent:#e8704a;
@@ -130,6 +140,8 @@
 .dw-streak .n{font-family:var(--font-display);color:var(--accent)}
 
 /* ============================================================ category chips */
+/* CatGlyph (.ic) outside a chip: profile rows, insights mix, editor preview */
+.dw-app .ic{display:grid;place-items:center;color:#fff;flex:none}
 .dw-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 6px;border-radius:999px;
   font-size:12.5px;font-weight:600;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
   transition:.15s;white-space:nowrap}
@@ -139,10 +151,7 @@
 .dw-chip.selectable{cursor:pointer}
 .dw-chip.selectable:hover{border-color:var(--faint)}
 .dw-chip.active{color:#fff;border-color:transparent}
-.dw-chip[data-cat="work"].active{background:var(--cat-work)}
-.dw-chip[data-cat="personal"].active{background:var(--cat-personal)}
-.dw-chip[data-cat="learning"].active{background:var(--cat-learning)}
-.dw-chip[data-cat="health"].active{background:var(--cat-health)}
+.dw-chip.active{background:var(--cat-color,var(--accent))}
 /* on active selectable chip, keep glyph legible */
 .dw-chip.selectable.active .ic{background:rgba(255,255,255,.26)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
 
@@ -194,10 +203,6 @@
 .dw-node{position:relative;margin-bottom:10px}
 .dw-node::before{content:"";position:absolute;left:-26px;top:18px;width:14px;height:14px;border-radius:50%;
   background:var(--surface);border:3px solid var(--cat-color,var(--accent));z-index:2}
-.dw-node[data-cat="work"]{--cat-color:var(--cat-work)}
-.dw-node[data-cat="personal"]{--cat-color:var(--cat-personal)}
-.dw-node[data-cat="learning"]{--cat-color:var(--cat-learning)}
-.dw-node[data-cat="health"]{--cat-color:var(--cat-health)}
 
 /* entry card */
 .dw-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:15px 16px;
@@ -222,10 +227,6 @@
   border-bottom:1px solid var(--line);padding:13px 4px;display:flex;gap:12px;align-items:flex-start}
 .dw-feed[data-style="compact"] .dw-card:hover{transform:none;background:var(--surface-2);border-radius:10px;border-bottom-color:transparent}
 .dw-feed[data-style="compact"] .dw-card .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none;background:var(--cat-color,var(--accent))}
-.dw-feed[data-style="compact"] .dw-node[data-cat="work"]{--cat-color:var(--cat-work)}
-.dw-feed[data-style="compact"] .dw-node[data-cat="personal"]{--cat-color:var(--cat-personal)}
-.dw-feed[data-style="compact"] .dw-node[data-cat="learning"]{--cat-color:var(--cat-learning)}
-.dw-feed[data-style="compact"] .dw-node[data-cat="health"]{--cat-color:var(--cat-health)}
 .dw-feed[data-style="compact"] .c-top{margin-bottom:3px}
 
 /* load older */
@@ -405,3 +406,17 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
   animation:dw-toast-in .3s cubic-bezier(.2,.9,.25,1)}
 .dw-app[data-device="desktop"] .dw-toast{bottom:30px}
 @keyframes dw-toast-in{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ============================================================ category editor */
+.dw-swatches{display:flex;flex-wrap:wrap;gap:10px}
+.dw-swatch{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;cursor:pointer;
+  border:none;transition:.15s;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.dw-swatch:hover{transform:translateY(-1px)}
+.dw-swatch.active{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
+.dw-icongrid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.dw-iconpick{aspect-ratio:1;border-radius:11px;display:grid;place-items:center;background:var(--surface-2);
+  color:var(--ink-2);border:1px solid var(--line);cursor:pointer;transition:.15s}
+.dw-iconpick:hover{border-color:var(--faint)}
+.dw-iconpick.active{background:var(--cat-color,var(--accent));color:#fff;border-color:transparent}
+.dw-field-error{font-size:12px;color:var(--cat-rose);margin-top:6px;font-weight:600}
+.dw-danger-note{font-size:13px;color:var(--ink-2);margin:2px 2px 10px;line-height:1.45}

@@ -6,7 +6,8 @@ import { useDW } from './useDW';
 import type { Theme } from './WinsProvider';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
-import { CATEGORY_KEYS, CATS, computeStreak } from '../../lib/winsData';
+import { computeStreak } from '../../lib/winsData';
+import { MAX_CATEGORIES } from '../../lib/categories';
 import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
 
@@ -60,7 +61,11 @@ export function Profile({ device }: { device: Device }) {
     pushBusy,
     setPushEnabled,
     updateSettings,
+    categories,
+    catById,
+    setCategorySheet,
   } = useDW();
+  const atCategoryLimit = categories.length >= MAX_CATEGORIES;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(prefs.name);
   const [email, setEmail] = useState(prefs.email);
@@ -306,37 +311,43 @@ export function Profile({ device }: { device: Device }) {
       {/* categories */}
       <div className="dw-section-label">Categories</div>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
-        {CATEGORY_KEYS.map((c) => (
-          <div key={c} className="dw-prefrow">
-            <CatGlyph cat={c} size={34} iconSize={18} />
-            <div className="lbl">
-              <div className="t">{CATS[c].label}</div>
-              <div className="s">{entries.filter((e) => e.category === c).length + ' wins'}</div>
-            </div>
-            <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
-          </div>
-        ))}
-        <div className="dw-prefrow" style={{ opacity: 0.7 }}>
+        {categories.map((c) => {
+          const count = entries.filter((e) => catById(e.categoryId).id === c.id).length;
+          return (
+            <button
+              key={c.id}
+              className="dw-prefrow"
+              style={{ width: '100%', textAlign: 'left' }}
+              onClick={() => setCategorySheet({ mode: 'edit', id: c.id })}
+            >
+              <CatGlyph cat={c} size={34} iconSize={18} />
+              <div className="lbl" style={{ minWidth: 0 }}>
+                <div className="t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {c.name}
+                </div>
+                <div className="s">{count === 1 ? '1 win' : count + ' wins'}</div>
+              </div>
+              <Icon name="edit" size={16} style={{ color: 'var(--faint)' }} />
+            </button>
+          );
+        })}
+        <button
+          className="dw-prefrow"
+          style={{ width: '100%', textAlign: 'left', ...(atCategoryLimit ? { opacity: 0.55 } : {}) }}
+          disabled={atCategoryLimit}
+          onClick={() => setCategorySheet({ mode: 'add' })}
+        >
           <div className="ico">
             <Icon name="plus" size={18} />
           </div>
           <div className="lbl">
-            <div className="t">Add custom category</div>
-            <div className="s">Coming in a future version</div>
+            <div className="t">Add category</div>
+            <div className="s">
+              {atCategoryLimit ? `You've reached the limit of ${MAX_CATEGORIES}` : 'Name it, pick a color and an icon'}
+            </div>
           </div>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: 'var(--accent)',
-              background: 'var(--accent-soft)',
-              padding: '3px 9px',
-              borderRadius: 999,
-            }}
-          >
-            SOON
-          </span>
-        </div>
+          <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
+        </button>
       </div>
 
       {/* account */}

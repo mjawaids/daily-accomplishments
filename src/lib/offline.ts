@@ -252,7 +252,11 @@ class OfflineManager {
               .from('accomplishments')
               .insert({
                 text: accomplishment.text,
-                category: accomplishment.category,
+                // Ops queued before category_id existed carry only the legacy
+                // text column; the database resolves it.
+                ...(accomplishment.category_id
+                  ? { category_id: accomplishment.category_id }
+                  : { category: accomplishment.category }),
                 user_id: accomplishment.user_id
               })
               .select()

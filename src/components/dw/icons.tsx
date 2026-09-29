@@ -1,7 +1,8 @@
 /* DailyWins — icon set (inline SVG, currentColor) + brand Logo + CatGlyph.
    Ported from the Claude Design handoff (app/icons.jsx). */
 import React from 'react';
-import type { Category } from '../../lib/winsData';
+import { categoryColor } from '../../lib/categories';
+import type { Category } from '../../lib/categories';
 
 export type IconName =
   | 'home' | 'insights' | 'user' | 'plus' | 'check' | 'search' | 'calendar' | 'star'
@@ -118,15 +119,8 @@ export function Logo({ size = 30, wordmark = true, fontSize = 21, color }: LogoP
   );
 }
 
-export const CAT_ICON: Record<Category, IconName> = {
-  work: 'briefcase',
-  personal: 'heartHand',
-  learning: 'book',
-  health: 'activity',
-};
-
 export interface CatGlyphProps {
-  cat: Category;
+  cat: Pick<Category, 'color' | 'icon'>;
   size?: number;
   iconSize?: number;
 }
@@ -136,9 +130,9 @@ export function CatGlyph({ cat, size = 20, iconSize }: CatGlyphProps) {
   return (
     <span
       className="ic"
-      style={{ width: size, height: size, background: `var(--cat-${cat})`, borderRadius: size * 0.32 }}
+      style={{ width: size, height: size, background: categoryColor(cat), borderRadius: size * 0.32 }}
     >
-      <Icon name={CAT_ICON[cat]} size={iconSize || size * 0.62} sw={2.1} />
+      <Icon name={cat.icon} size={iconSize || size * 0.62} sw={2.1} />
     </span>
   );
 }

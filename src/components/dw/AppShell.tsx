@@ -13,6 +13,7 @@ import { Timeline, Insights } from './screens';
 import { Profile } from './screens2';
 import { InstallPrompt } from '../InstallPrompt';
 import { PushPrompt } from './PushPrompt';
+import { CategorySheet } from './CategorySheet';
 
 // ---- desktop sidebar ----
 function Sidebar() {
@@ -136,6 +137,7 @@ export function AppShell() {
         </>
       )}
       <AddEditLayer />
+      <CategorySheet />
       <Toast />
       <Confetti />
       <InstallPrompt />
