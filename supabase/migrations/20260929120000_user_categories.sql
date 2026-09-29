@@ -109,16 +109,24 @@ begin
 end;
 $$;
 
--- Backfill every existing account.
-do $$
-declare
-  u record;
-begin
-  for u in select id from auth.users loop
-    perform public.seed_default_categories(u.id);
-  end loop;
-end;
-$$;
+-- The compat trigger below calls this with the caller's rights, so
+-- authenticated keeps EXECUTE (RLS confines the inserts to its own rows).
+revoke execute on function public.seed_default_categories(uuid) from public, anon;
+grant execute on function public.seed_default_categories(uuid) to authenticated;
+
+-- Backfill every existing account in one set-based statement. Accounts that
+-- already have categories are skipped, so a re-run never restores a default
+-- the user deleted.
+insert into public.categories (user_id, name, color, icon, position, legacy_key)
+select u.id, d.name, d.color, d.icon, d.position, d.legacy_key
+  from auth.users u
+ cross join (values ('Work',     'blue',   'briefcase', 0, 'work'),
+                    ('Personal', 'rose',   'heartHand', 1, 'personal'),
+                    ('Learning', 'violet', 'book',      2, 'learning'),
+                    ('Health',   'green',  'activity',  3, 'health'))
+         as d(name, color, icon, position, legacy_key)
+ where not exists (select 1 from public.categories c where c.user_id = u.id)
+on conflict do nothing;
 
 -- ------------------------------------------------------------- accomplishments
 
@@ -131,6 +139,16 @@ update public.accomplishments a
  where a.category_id is null
    and c.user_id = a.user_id
    and c.legacy_key = a.category;
+
+-- Defensive: anything still unmatched goes to the user's first category, so the
+-- NOT NULL below cannot fail the migration.
+update public.accomplishments a
+   set category_id = (select c.id
+                        from public.categories c
+                       where c.user_id = a.user_id
+                       order by c.position, c.created_at
+                       limit 1)
+ where a.category_id is null;
 
 alter table public.accomplishments alter column category_id set not null;
 
@@ -172,11 +190,13 @@ begin
       from public.categories
      where user_id = new.user_id and legacy_key = new.category;
     if new.category_id is null then
-      -- The user deleted that default; fall back to their first category.
+      -- The user deleted that default; fall back to their first category,
+      -- preferring a remaining default so stale clients still get a non-null
+      -- `category` they can render.
       select id, legacy_key into new.category_id, new.category
         from public.categories
        where user_id = new.user_id
-       order by position, created_at
+       order by (legacy_key is null), position, created_at
        limit 1;
     end if;
   elsif tg_op = 'INSERT' or new.category_id is distinct from old.category_id then

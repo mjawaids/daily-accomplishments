@@ -82,6 +82,26 @@ describe('toWin + categoryMix', () => {
       ['c-side', 1, 33],
     ]);
   });
+
+  it('hides categories with no wins', () => {
+    const mix = categoryMix([row('1', 'c-side', null)].map(toWin), cats);
+    expect(mix.map((m) => m.category.id)).toEqual(['c-side']);
+  });
+
+  it('lists every category at 0% when there are no wins', () => {
+    expect(categoryMix([], cats).map((m) => [m.category.id, m.pct])).toEqual([
+      ['c-work', 0],
+      ['c-side', 0],
+    ]);
+  });
+
+  it('gives unresolvable wins their own row so percentages add up', () => {
+    const mix = categoryMix([row('1', 'c-work', 'work'), row('2', 'gone', null)].map(toWin), cats);
+    expect(mix.map((m) => [m.category.name, m.pct])).toEqual([
+      ['Work', 50],
+      ['Uncategorized', 50],
+    ]);
+  });
 });
 
 describe('migration parity', () => {

@@ -452,9 +452,9 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
           return;
         }
       } else {
-        // Offline best-effort: text + date sync via the pending queue (category
-        // updates optimistically in local state only).
-        await offlineManager.updateAccomplishment(id, text, createdAt);
+        // Offline: text, date and category sync via the pending queue, and the
+        // IndexedDB cache is updated so the change survives a reload.
+        await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
       }
       setEntries((prev) =>
         prev

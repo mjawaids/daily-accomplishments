@@ -158,19 +158,22 @@ export interface CategoryMix {
   pct: number;
 }
 
+/** Wins per category, most-used first. Only categories with wins are listed
+    (a user can have up to 20), except that with no wins at all every category
+    is shown at 0%. Wins whose category cannot be resolved get their own
+    "Uncategorized" row so the percentages still add up. */
 export function categoryMix(entries: Win[], categories: Category[]): CategoryMix[] {
-  const total = entries.length || 1;
-  const counts = new Map<string, number>();
+  if (!entries.length) return categories.map((category) => ({ category, count: 0, pct: 0 }));
+  const buckets = new Map<string, { category: Category; count: number }>();
   for (const e of entries) {
-    const id = resolveCategory(categories, e.categoryId).id;
-    counts.set(id, (counts.get(id) || 0) + 1);
+    const category = resolveCategory(categories, e.categoryId);
+    const bucket = buckets.get(category.id) || { category, count: 0 };
+    bucket.count += 1;
+    buckets.set(category.id, bucket);
   }
-  return categories
-    .map((category) => {
-      const count = counts.get(category.id) || 0;
-      return { category, count, pct: Math.round((count / total) * 100) };
-    })
-    .sort((a, b) => b.count - a.count);
+  return [...buckets.values()]
+    .map(({ category, count }) => ({ category, count, pct: Math.round((count / entries.length) * 100) }))
+    .sort((a, b) => b.count - a.count || a.category.position - b.category.position);
 }
 
 export interface HeatCell {
