@@ -1,7 +1,7 @@
 /* DailyWins — Timeline + Insights screens.
    Ported from the Claude Design handoff (app/screens.jsx). */
 import React, { useEffect, useMemo, useState } from 'react';
-import { useDW } from './WinsProvider';
+import { useDW } from './useDW';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
 import { Avatar, DateHead, EntryCard, QuickComposer } from './components';

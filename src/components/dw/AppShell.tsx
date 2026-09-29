@@ -2,7 +2,8 @@
    bar, add/edit sheet, toast + confetti. Ported from app/app.jsx (DailyWinsApp,
    Sidebar, MobileNav, AddEditLayer); tweaks/device-frames/Stage are not ported. */
 import React from 'react';
-import { useDW, Toast, Confetti } from './WinsProvider';
+import { Toast, Confetti } from './WinsProvider';
+import { useDW } from './useDW';
 import { useDevice, useResolvedTheme } from './useDevice';
 import type { Device } from './useDevice';
 import { Icon, Logo } from './icons';

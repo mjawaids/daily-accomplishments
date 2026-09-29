@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useDW } from './WinsProvider';
+import { useDW } from './useDW';
 import { isIosNeedsInstall } from '../../lib/onesignal';
 import { Icon } from './icons';
 

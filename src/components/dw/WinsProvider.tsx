@@ -1,9 +1,7 @@
 /* DailyWins — app state context, wired to Supabase + the IndexedDB offline layer.
    Replaces the prototype's localStorage store (app/store.jsx) with real data. */
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -28,10 +26,12 @@ import {
   initOneSignal,
   loginPushAlias,
   onPushStateChange,
+  onSdkReady,
   resubscribeIfPermitted,
 } from '../../lib/onesignal';
 import type { PushState } from '../../lib/onesignal';
 import { Icon } from './icons';
+import { WinsContext, useDW } from './useDW';
 import type { IconName } from './icons';
 
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
@@ -91,13 +91,6 @@ export interface WinsContextValue {
   setPushEnabled: (on: boolean) => Promise<void>;
   updateSettings: (patch: UserSettingsPatch) => Promise<void>;
 }
-
-const WinsContext = createContext<WinsContextValue | null>(null);
-export const useDW = (): WinsContextValue => {
-  const ctx = useContext(WinsContext);
-  if (!ctx) throw new Error('useDW must be used within WinsProvider');
-  return ctx;
-};
 
 const PREFS_KEY = 'dw_prefs';
 
@@ -231,6 +224,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   // push_enabled flag against what the browser actually believes.
   useEffect(() => {
     let cancelled = false;
+    let stopWaitingForSdk: (() => void) | undefined;
     (async () => {
       const loaded = await ensureUserSettings(userId);
       if (cancelled) return;
@@ -252,8 +246,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       setSettingsLoading(false);
 
       if (current.push_enabled) {
-        const ready = await initOneSignal();
-        if (ready && !cancelled) {
+        const joinThisDevice = async () => {
           await loginPushAlias(current.push_alias);
           // push_enabled is account-wide (one user_settings row per user) while
           // subscription state is per-browser, so this must NOT write the flag
@@ -261,12 +254,26 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
           // opted in would switch reminders off for the phone that did.
           // Instead, let this device join when it already has permission.
           await resubscribeIfPermitted();
+        };
+        const ready = await initOneSignal();
+        if (cancelled) return;
+        if (ready) {
+          await joinThisDevice();
+        } else {
+          // Init gives up after a timeout, but on a slow network the SDK can
+          // still arrive later. Join then, instead of leaving this device
+          // unsubscribed until a reload. Unsubscribed in cleanup, so a sign-out
+          // in the meantime can never re-alias this browser.
+          stopWaitingForSdk = onSdkReady(() => {
+            if (!cancelled) void joinThisDevice();
+          });
         }
       }
       if (!cancelled) setPushState(getPushState());
     })();
     return () => {
       cancelled = true;
+      stopWaitingForSdk?.();
     };
   }, [userId]);
 
@@ -318,6 +325,8 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
             showToast('Reminders on', 'bell');
           } else if (state === 'denied') {
             showToast('Notifications are blocked in your browser settings', 'bell');
+          } else if (state === 'blocked') {
+            showToast('Blocked by an ad blocker — allow this site, then reload', 'bell');
           }
         } else {
           await disablePush();
