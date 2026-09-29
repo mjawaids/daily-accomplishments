@@ -26,6 +26,22 @@ jobs:
       - run: npm run typecheck:functions
       - run: npm run build
 
+  # Every PR into main deploys on merge, so every PR must carry a version bump
+  # in package.json (rules: CLAUDE.md > Versioning).
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a package.json version bump
+        run: |
+          base=$(git show "origin/${{ github.base_ref }}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0)).version")
+          head=$(node -p "require('./package.json').version")
+          echo "base $base, this PR $head"
+          [ "$base" != "$head" ] && [ "$(printf '%s\n%s\n' "$base" "$head" | sort -V | tail -n 1)" = "$head" ] \
+            || { echo "::error::package.json version must be bumped above $base (see CLAUDE.md > Versioning)"; exit 1; }
+
   migrations:
     runs-on: ubuntu-latest
     steps:

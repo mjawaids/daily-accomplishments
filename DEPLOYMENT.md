@@ -5,7 +5,7 @@ Actions from the `main` branch. Nothing else deploys or changes the schema.
 
 | When | Workflow | What it does |
 |---|---|---|
-| Pull request into `main` | `.github/workflows/ci.yml` | lint, function typecheck, build; `supabase db push --dry-run` against production (read-only) |
+| Pull request into `main` | `.github/workflows/ci.yml` | lint, tests, function typecheck, build; version bump check; `supabase db push --dry-run` against production (read-only) |
 | Push to `main` | `.github/workflows/deploy.yml` | `supabase db push`, then `netlify deploy --prod` (builds with Netlify's production env vars) |
 
 Each Netlify deploy's message starts with the version and commit SHA
@@ -13,21 +13,14 @@ Each Netlify deploy's message starts with the version and commit SHA
 
 ## Versioning
 
-Every deploy gets a [semantic version](https://semver.org): the latest `v*`
-git tag plus a bump. After a successful deploy the workflow pushes the tag
-and creates a GitHub Release with generated notes. **Tags and releases are the
-source of truth**; `package.json` in git is not updated (the workflow stamps it
-in the build only), and a failed deploy consumes no version.
-
-| Bump | Use for |
-|---|---|
-| major | Breaking or user-visible incompatible changes (e.g. data model changes users must notice) |
-| minor | New features, backward compatible |
-| patch | Bug fixes and small tweaks |
-
-A push to `main` always deploys a **patch**. To ship a minor or major, run
-GitHub > Actions > Deploy > Run workflow (branch `main`) and choose the
-`bump`. That run deploys the current `main`.
+Semantic versioning, with `package.json` as the source of truth. The change
+itself bumps the version (major/minor/patch chosen from what it does; rules in
+[`CLAUDE.md`](CLAUDE.md#versioning)), and the `version` check in `ci.yml`
+fails a PR that doesn't raise it above `main`'s. On deploy, the version is
+baked into the build (shown in the profile footer), then, after Netlify
+succeeds, the workflow pushes the `vX.Y.Z` tag and creates a GitHub Release
+with generated notes. A failed deploy consumes no tag, and a manual redeploy
+of an already-tagged version skips tagging.
 
 ## Rules
 

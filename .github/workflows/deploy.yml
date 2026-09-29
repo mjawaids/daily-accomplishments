@@ -11,12 +11,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      bump:
-        description: Semantic version bump for this deploy (pushes to main always use patch)
-        type: choice
-        options: [patch, minor, major]
-        default: patch
 
 # One production deploy at a time, in push order; never cancel one mid-way.
 concurrency:
@@ -32,8 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # the version step needs the existing v* tags
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -42,28 +34,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck:functions
 
-      # Semantic version: the latest v* tag plus the requested bump. Pushes to
-      # main have no input, so they get a patch bump; run the workflow manually
-      # to ship a minor or major. With no tag yet, package.json is the baseline.
-      # Only the working tree is stamped -- nothing is committed back to main;
-      # the tag and release created after a successful deploy are the record.
-      - name: Compute version
-        env:
-          BUMP: ${{ inputs.bump || 'patch' }}
-        run: |
-          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
-          current=${latest#v}
-          current=${current:-$(node -p "require('./package.json').version")}
-          IFS=. read -r major minor patch <<< "$current"
-          case "$BUMP" in
-            major) major=$((major + 1)); minor=0; patch=0 ;;
-            minor) minor=$((minor + 1)); patch=0 ;;
-            *) patch=$((patch + 1)) ;;
-          esac
-          version="$major.$minor.$patch"
-          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
-          echo "Version: ${latest:-none} -> v$version ($BUMP)"
-          npm version "$version" --no-git-tag-version --allow-same-version
+      # The version is package.json's, bumped by the change itself (see
+      # CLAUDE.md > Versioning) and enforced on PRs by ci.yml. It is baked into
+      # the build via vite.config.ts, so the profile footer shows it.
+      - name: Read version
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
 
       - uses: supabase/setup-cli@v1
         with:
@@ -90,11 +65,16 @@ jobs:
           --context production
           --message "v$APP_VERSION ${{ github.sha }}: $(git log -1 --format=%s | head -c 150)"
 
-      # After the deploy, so a failed deploy never consumes a version number.
+      # After the deploy, so a failed deploy never consumes a version. A manual
+      # redeploy of a version that is already tagged skips this step.
       - name: Tag and publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/v$APP_VERSION" >/dev/null; then
+            echo "v$APP_VERSION is already tagged; not creating a release."
+            exit 0
+          fi
           git tag "v$APP_VERSION"
           git push origin "v$APP_VERSION"
           gh release create "v$APP_VERSION" --title "v$APP_VERSION" --generate-notes --target "$GITHUB_SHA"
