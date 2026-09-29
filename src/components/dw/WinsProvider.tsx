@@ -1,9 +1,7 @@
 /* DailyWins — app state context, wired to Supabase + the IndexedDB offline layer.
    Replaces the prototype's localStorage store (app/store.jsx) with real data. */
 import React, {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -32,6 +30,7 @@ import {
 } from '../../lib/onesignal';
 import type { PushState } from '../../lib/onesignal';
 import { Icon } from './icons';
+import { WinsContext, useDW } from './useDW';
 import type { IconName } from './icons';
 
 type Accomplishment = Database['public']['Tables']['accomplishments']['Row'];
@@ -91,13 +90,6 @@ export interface WinsContextValue {
   setPushEnabled: (on: boolean) => Promise<void>;
   updateSettings: (patch: UserSettingsPatch) => Promise<void>;
 }
-
-const WinsContext = createContext<WinsContextValue | null>(null);
-export const useDW = (): WinsContextValue => {
-  const ctx = useContext(WinsContext);
-  if (!ctx) throw new Error('useDW must be used within WinsProvider');
-  return ctx;
-};
 
 const PREFS_KEY = 'dw_prefs';
 
@@ -319,7 +311,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
           } else if (state === 'denied') {
             showToast('Notifications are blocked in your browser settings', 'bell');
           } else if (state === 'blocked') {
-            showToast('A content blocker is stopping notifications — allow this site, then reload', 'bell');
+            showToast('Blocked by an ad blocker — allow this site, then reload', 'bell');
           }
         } else {
           await disablePush();

@@ -1,7 +1,7 @@
 /* DailyWins — shared UI components (entry card, composer, form, chips).
    Ported from the Claude Design handoff (app/components.jsx); favorites removed. */
 import React, { useEffect, useRef, useState } from 'react';
-import { useDW } from './WinsProvider';
+import { useDW } from './useDW';
 import { Icon, CatGlyph } from './icons';
 import { CATEGORY_KEYS, CATS, isoLocal, timeLabel } from '../../lib/winsData';
 import type { Category, DayGroup, Win } from '../../lib/winsData';

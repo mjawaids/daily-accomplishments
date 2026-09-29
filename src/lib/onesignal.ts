@@ -22,7 +22,10 @@ export type PushState =
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID as string | undefined;
 
 /** A blocked <script> tag never fires anything we can await, so without a cap
-    the toggle would sit on "Enabling…" forever. */
+    the toggle would sit on "Enabling…" forever. 10s is long enough for a slow
+    mobile connection to fetch the SDK, but short enough that the user still
+    gets an answer. Being wrong is cheap either way, because a load that finishes
+    after the cap is still adopted (see initOneSignal). */
 const INIT_TIMEOUT_MS = 10_000;
 
 let sdk: typeof OneSignalType | null = null;
@@ -78,6 +81,8 @@ export function isIosNeedsInstall(): boolean {
 }
 
 function attachSdk(OneSignal: typeof OneSignalType): void {
+  // Registering emit twice would fire every listener twice per change.
+  if (sdk === OneSignal) return;
   sdk = OneSignal;
   sdkBlocked = false;
   OneSignal.Notifications.addEventListener('permissionChange', emit);
@@ -86,6 +91,11 @@ function attachSdk(OneSignal: typeof OneSignalType): void {
 
 /** Idempotent. Resolves false when unsupported, VITE_ONESIGNAL_APP_ID is unset,
     or the SDK could not be loaded (see sdkBlocked).
+
+    A false result can be superseded: when the timeout fires but the SDK turns
+    up later, it is adopted and state listeners are told. So code that has to
+    react to recovery should subscribe with onPushStateChange() rather than
+    rely on this return value alone.
 
     A failure is NOT retried within the page: react-onesignal keeps its failed
     <script> tag and a module-level "failed" flag, so a second init() would just
@@ -132,7 +142,9 @@ export function initOneSignal(): Promise<boolean> {
             initPromise = Promise.resolve(true);
             emit();
           },
-          () => {}
+          (err) => {
+            console.warn('[onesignal] SDK also failed after the timeout:', err);
+          }
         );
         return false;
       }

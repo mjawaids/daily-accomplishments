@@ -2,7 +2,7 @@
    Ported from the Claude Design handoff (app/screens2.jsx). Accent picker and
    "restore sample data" are dropped per the agreed scope (defaults only). */
 import { useState } from 'react';
-import { useDW } from './WinsProvider';
+import { useDW } from './useDW';
 import type { Theme } from './WinsProvider';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
@@ -105,8 +105,8 @@ export function Profile({ device }: { device: Device }) {
   } else if (pushState === 'blocked') {
     // Kept clickable (canEnableHere): a click explains the fix via a toast.
     pushSub = pushOn
-      ? `${onFor} — a content blocker is stopping it on this device`
-      : 'Blocked by a content blocker — allow this site (e.g. in Brave Shields), then reload';
+      ? `${onFor} — an ad blocker is stopping it on this device`
+      : 'Blocked by an ad blocker (e.g. Brave Shields, uBlock) — allow this site, then reload';
   } else if (pushState === 'denied') {
     pushSub = pushOn
       ? `${onFor} — blocked in this browser`
