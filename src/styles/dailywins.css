@@ -39,7 +39,7 @@
   --surface-3:#f0e7da;
   --ink:#2a2622;
   --ink-2:#5b5147;
-  --muted:#9a8d7f;
+  --muted:#776a5d; /* ≥4.5:1 on --bg and --surface */
   --faint:#c9bdae;
   --line:#ece2d6;
   --line-2:#e3d7c8;
@@ -47,6 +47,8 @@
   --shadow-sm:0 4px 14px -8px rgba(74,52,32,0.30);
   --accent-soft:color-mix(in oklab, var(--accent) 12%, var(--surface));
   --accent-soft-2:color-mix(in oklab, var(--accent) 18%, transparent);
+  /* accent for small text on --accent-soft (the raw accent is too light there) */
+  --accent-text:color-mix(in oklab, var(--accent) 78%, #000);
 
   color:var(--ink);
   font-family:var(--font-body);
@@ -81,6 +83,7 @@
   --shadow:0 16px 40px -16px rgba(0,0,0,0.6);
   --shadow-sm:0 6px 18px -10px rgba(0,0,0,0.55);
   --accent-soft:color-mix(in oklab, var(--accent) 20%, var(--surface));
+  --accent-text:color-mix(in oklab, var(--accent) 82%, #fff);
   --accent-ink:#ffffff;
 }
 
@@ -235,25 +238,100 @@
   background:var(--surface);border:1px solid var(--line-2);font-weight:600;font-size:13.5px;color:var(--ink-2);box-shadow:var(--shadow-sm)}
 .dw-loadmore button:hover{color:var(--ink);border-color:var(--faint)}
 
-/* search + jump to date */
-.dw-searchbar{display:flex;gap:10px;align-items:center;margin-bottom:10px}
-.dw-searchbar .dw-inputrow{flex:1;min-width:0;background:var(--surface)}
-.dw-searchbar input[type="search"]{min-width:0;color:var(--ink);-webkit-appearance:none;appearance:none}
-.dw-searchbar input[type="search"]::-webkit-search-cancel-button{display:none}
-.dw-searchbar input::placeholder{color:var(--faint)}
-.dw-datepick{position:relative;flex:none}
-.dw-datepick .dw-iconbtn{width:46px;height:46px}
-.dw-datepick input{position:absolute;inset:0;opacity:0;pointer-events:none;width:100%;height:100%}
-.dw-iconbtn.active{background:var(--accent-soft);color:var(--accent)}
-.dw-iconbtn.sm{width:32px;height:32px;border-radius:10px}
-.dw-iconbtn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+/* header actions: search & filter toggle, streak pill */
+.dw-headact{display:flex;align-items:center;gap:8px;flex:none}
+.dw-iconbtn.active{background:var(--accent-soft);color:var(--accent-text);box-shadow:none}
+.dw-streak.btn{padding:0 12px 0 10px;height:36px;font-size:13.5px;transition:.16s}
+.dw-streak.btn:hover{transform:translateY(-1px)}
+.dw-streak.btn .n{color:var(--accent-text)}
+
+/* collapsible block: grid rows 0fr ↔ 1fr, so height animates without measuring.
+   Closed blocks are also visibility:hidden, so nothing inside can take focus. */
+.dw-collapse{display:grid;grid-template-rows:0fr;opacity:0;transform:translateY(-6px);visibility:hidden;
+  transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1),opacity .22s ease,transform .28s cubic-bezier(.2,.8,.2,1),visibility 0s linear .28s}
+.dw-collapse>*{min-height:0;overflow:hidden}
+.dw-collapse.open{grid-template-rows:1fr;opacity:1;transform:none;visibility:visible;
+  transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1),opacity .22s ease,transform .28s cubic-bezier(.2,.8,.2,1),visibility 0s}
+/* widen the clip box sideways so card shadows and focus rings aren't cut off
+   (margin and padding cancel out); the vertical room lives inside, so a
+   closed block still takes no space */
+.dw-collapse.bleed{--bleed:16px}
+.dw-app[data-device="desktop"] .dw-collapse.bleed{--bleed:24px}
+.dw-collapse.bleed>*{margin:0 calc(-1 * var(--bleed))}
+.dw-collapse.bleed>*>*{padding:4px var(--bleed) 10px}
+
+/* search & filter panel */
+.dw-filterpanel{position:relative;padding-bottom:4px}
+.dw-searchfield{display:flex;align-items:center;gap:10px;height:44px;border-radius:13px;padding:0 5px 0 13px;
+  background:var(--surface-2);border:1px solid transparent;
+  /* not `all`: an inherited visibility change must apply at once, or focus() on open fails */
+  transition:background .15s,border-color .15s,box-shadow .15s}
+.dw-searchfield:focus-within{background:var(--surface);border-color:color-mix(in oklab,var(--accent) 50%,var(--line));
+  box-shadow:0 0 0 3px var(--accent-soft)}
+.dw-searchfield>svg{color:var(--muted);flex:none}
+.dw-searchfield input{flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;font-size:16px;
+  color:var(--ink);-webkit-appearance:none;appearance:none}
+.dw-searchfield input::-webkit-search-cancel-button{display:none}
+.dw-searchfield input::placeholder{color:var(--muted)}
+.dw-searchfield .dw-kbhint{display:none}
+.dw-searchfield:focus-within .dw-kbhint{display:inline-flex}
+.dw-clearbtn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
+  background:var(--surface-2);color:var(--ink-2)}
+.dw-clearbtn:hover{color:var(--ink);background:var(--surface-3)}
+
+.dw-filterrow{display:flex;align-items:center;gap:7px;margin-top:10px;padding:2px 0}
+.dw-app[data-device="desktop"] .dw-filterrow{flex-wrap:wrap}
+.dw-app[data-device="mobile"] .dw-filterrow{overflow-x:auto;scrollbar-width:none}
+.dw-app[data-device="mobile"] .dw-filterrow::-webkit-scrollbar{display:none}
+.dw-filterrow .dw-chip{height:34px;flex:none}
+.dw-app[data-device="mobile"] .dw-filterrow .dw-chip{height:36px}
+.dw-filterrow .sep{flex:none;width:1px;height:20px;background:var(--line-2);margin:0 2px}
+/* chips follow the panel in, one after another */
+.dw-filterrow>*{opacity:0;transform:translateY(6px);
+  transition:opacity .22s ease,transform .3s cubic-bezier(.2,.8,.2,1),background .15s,color .15s,border-color .15s}
+.dw-collapse.open .dw-filterrow>*{opacity:1;transform:none;transition-delay:calc(60ms + var(--i, 0) * 35ms),calc(60ms + var(--i, 0) * 35ms),0s,0s,0s}
+
+/* date chip: "Any day" (dashed) or the chosen day with ‹ › × */
+.dw-datechip{display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-style:dashed;border-color:var(--faint);
+  color:var(--ink-2);background:transparent}
+.dw-datechip:hover{border-color:var(--muted);color:var(--ink)}
+.dw-datechip.set{gap:0;padding:0 2px;border:1px solid color-mix(in oklab,var(--accent) 28%,transparent);
+  background:var(--accent-soft);color:var(--accent-text)}
+.dw-datechip.set button{height:100%;display:inline-flex;align-items:center;justify-content:center;color:inherit;border-radius:999px}
+.dw-datechip.set .step{width:28px}
+.dw-datechip.set .step:disabled{opacity:.35;cursor:not-allowed}
+.dw-datechip.set .lbl{gap:6px;padding:0 3px;font-weight:700;white-space:nowrap}
+.dw-datechip.set .x{width:30px}
+.dw-datechip.set button:hover:not(:disabled){background:color-mix(in oklab,var(--accent) 12%,transparent)}
+.dw-datepick{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
 .dw-clear{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:9px;
-  font-size:12.5px;font-weight:700;color:var(--muted)}
-.dw-clear:hover{color:var(--ink);background:var(--surface-2)}
-.dw-dayfilter{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:10px;border-radius:14px;
-  background:var(--accent-soft);border:1px solid color-mix(in oklab,var(--accent) 22%,transparent)}
-.dw-dayfilter .lbl{font-family:var(--font-display);font-weight:700;font-size:14.5px;color:var(--ink)}
-.dw-results{font-size:12.5px;font-weight:600;color:var(--muted);padding:2px 2px 0}
+  font-size:12.5px;font-weight:700;color:var(--accent-text)}
+.dw-clear:hover{background:var(--accent-soft)}
+.dw-results{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px;
+  font-size:12.5px;font-weight:600;color:var(--muted);padding:0 2px}
+.dw-results .txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* keyboard hints: key caps + tooltips, only where there is a keyboard */
+.dw-kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:5px;
+  background:var(--surface-2);border:1px solid var(--line-2);border-bottom-width:2px;color:var(--ink-2);
+  font:700 11px/1 ui-monospace,'SF Mono',Menlo,monospace}
+.dw-kbhint{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.dw-tipwrap{position:relative;display:inline-flex}
+.dw-tip{position:absolute;top:calc(100% + 8px);right:0;z-index:30;display:flex;align-items:center;gap:8px;
+  padding:6px 7px 6px 10px;border-radius:9px;background:var(--ink);color:var(--bg);font-size:12.5px;font-weight:600;
+  white-space:nowrap;box-shadow:var(--shadow);pointer-events:none;opacity:0;transform:translateY(-3px);transition:.14s}
+.dw-tip .dw-kbd{background:color-mix(in oklab,var(--bg) 22%,var(--ink));border-color:transparent;color:var(--bg)}
+@media (hover:hover){
+  .dw-tipwrap:hover .dw-tip,.dw-tipwrap:has(:focus-visible) .dw-tip{opacity:1;transform:none;transition-delay:.3s}
+}
+@media (hover:none),(pointer:coarse){
+  .dw-kbonly,.dw-tip{display:none!important}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .dw-collapse,.dw-collapse.open,.dw-filterrow>*,.dw-collapse.open .dw-filterrow>*{transition:none}
+}
 .dw-noresults{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
   padding:36px 16px;color:var(--muted)}
 .dw-noresults p{font-size:14px;max-width:34ch}

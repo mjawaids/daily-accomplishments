@@ -103,16 +103,21 @@ export interface WinFilter {
   query?: string;
   /** A local-date `YYYY-MM-DD` key (see dayKey()) to restrict to one day. */
   day?: string | null;
+  /** Keep only wins in any of these categories. Empty or absent = all. */
+  categoryIds?: string[];
 }
 
-/** Wins matching every search term (in the text or the category name) and,
-    if given, falling on `day`. An empty filter keeps everything. */
+/** Wins matching every search term (in the text or the category name), in
+    one of `categoryIds` if any are given, and falling on `day` if given. An
+    empty filter keeps everything. */
 export function filterWins(entries: Win[], filter: WinFilter, categoryName: (categoryId: string) => string): Win[] {
   const terms = searchTerms(filter.query || '');
   const day = filter.day || null;
-  if (!terms.length && !day) return entries;
+  const cats = filter.categoryIds && filter.categoryIds.length ? new Set(filter.categoryIds) : null;
+  if (!terms.length && !day && !cats) return entries;
   return entries.filter((e) => {
     if (day && dayKey(e.ts) !== day) return false;
+    if (cats && !cats.has(e.categoryId)) return false;
     if (!terms.length) return true;
     const hay = foldText(e.text) + '\n' + foldText(categoryName(e.categoryId));
     return terms.every((t) => hay.includes(t));

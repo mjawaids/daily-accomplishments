@@ -54,6 +54,22 @@ describe('filterWins', () => {
   it('combines a query with a day', () => {
     expect(ids(filterWins(wins, { query: 'work', day: '2026-09-27' }, catName))).toEqual(['3']);
   });
+
+  it('keeps everything for an empty category list', () => {
+    expect(filterWins(wins, { categoryIds: [] }, catName)).toBe(wins);
+  });
+
+  it('restricts to any of the selected categories', () => {
+    expect(ids(filterWins(wins, { categoryIds: ['h'] }, catName))).toEqual(['2']);
+    expect(ids(filterWins(wins, { categoryIds: ['w', 'h'] }, catName))).toEqual(['1', '2', '3']);
+    expect(ids(filterWins(wins, { categoryIds: ['gone'] }, catName))).toEqual([]);
+  });
+
+  it('combines a query, categories and a day', () => {
+    expect(ids(filterWins(wins, { query: 'coffee', categoryIds: ['w'], day: '2026-09-27' }, catName))).toEqual(['3']);
+    expect(ids(filterWins(wins, { query: 'coffee', categoryIds: ['h'], day: '2026-09-27' }, catName))).toEqual([]);
+    expect(ids(filterWins(wins, { categoryIds: ['w'], day: dayKey(at(2026, 9, 28)) }, catName))).toEqual(['1']);
+  });
 });
 
 describe('highlightParts', () => {

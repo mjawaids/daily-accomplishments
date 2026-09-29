@@ -7,6 +7,12 @@ import { highlightParts, isoLocal, timeLabel } from '../../lib/winsData';
 import type { DayGroup, Win } from '../../lib/winsData';
 import { catColorVar } from '../../lib/categories';
 import { relativeDay, dayLabel, shortDay } from '../../lib/winsData';
+import { IS_MAC } from './keys';
+
+/** A key cap, for keyboard-shortcut hints. */
+export function Kbd({ children }: { children: React.ReactNode }) {
+  return <kbd className="dw-kbd">{children}</kbd>;
+}
 
 export function Avatar({ size = 34 }: { size?: number }) {
   const { prefs, avatarUrl } = useDW();
@@ -201,7 +207,16 @@ export function QuickComposer() {
           >
             <Icon name="calendar" size={18} />
           </button>
-          <button className="dw-btn sm" disabled={!text.trim()} onClick={submit}>
+          <span className="dw-kbhint dw-kbonly" aria-hidden="true">
+            <Kbd>{IS_MAC ? '⌘' : 'Ctrl'}</Kbd>
+            <Kbd>↵</Kbd>
+          </span>
+          <button
+            className="dw-btn sm"
+            disabled={!text.trim()}
+            onClick={submit}
+            aria-keyshortcuts={IS_MAC ? 'Meta+Enter' : 'Control+Enter'}
+          >
             <Icon name="check" size={16} sw={2.6} />
             Log win
           </button>
