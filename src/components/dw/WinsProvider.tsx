@@ -437,25 +437,10 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     async (id: string, patch: { text: string; categoryId: string; ts: number }) => {
       const text = patch.text.trim();
       const createdAt = new Date(patch.ts).toISOString();
-      if (navigator.onLine) {
-        const { error } = await supabase
-          .from('accomplishments')
-          .update({
-            text,
-            ...categoryWriteFields(patch.categoryId),
-            created_at: createdAt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id);
-        if (error) {
-          console.error('Error updating accomplishment:', error);
-          return;
-        }
-      } else {
-        // Offline: text, date and category sync via the pending queue, and the
-        // IndexedDB cache is updated so the change survives a reload.
-        await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
-      }
+      // Online: writes to Supabase. Offline, or if that fails: queues the edit
+      // (text, date and category) for sync. Either way the IndexedDB cache is
+      // updated, so the edit survives a reload while offline.
+      await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
       setEntries((prev) =>
         prev
           .map((e) => (e.id === id ? { ...e, text, categoryId: patch.categoryId, ts: patch.ts } : e))
