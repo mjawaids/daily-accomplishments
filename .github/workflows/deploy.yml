@@ -17,7 +17,7 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 
-# write: the last step pushes the vX.Y.Z tag and creates the GitHub Release.
+# write: the last step pushes the vYYYY.MM.DD.N tag and creates the GitHub Release.
 permissions:
   contents: write
 
@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version step counts today's existing v* tags
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -34,11 +36,26 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck:functions
 
-      # The version is package.json's, bumped by the change itself (see
-      # CLAUDE.md > Versioning) and enforced on PRs by ci.yml. It is baked into
-      # the build via vite.config.ts, so the profile footer shows it.
-      - name: Read version
-        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      # Calendar version YYYY.MM.DD.N: today's UTC date plus the number of this
+      # deploy today (existing tags + 1). No human picks it; the concurrency
+      # group above serializes deploys, so N cannot collide. It is stamped into
+      # package.json in this working tree only (nothing is committed back to
+      # main), and vite.config.ts bakes it into the build for the profile
+      # footer. Written with node, not `npm version`: 2026.09.29.1 is not
+      # valid semver. Stamped after `npm ci`/lint, just before the build.
+      - name: Compute version
+        run: |
+          today=$(date -u +%Y.%m.%d)
+          n=$(git tag --list "v$today.*" | wc -l)
+          version="$today.$((n + 1))"
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Version: v$version"
+          VERSION="$version" node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = process.env.VERSION;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\\n');
+          "
 
       - uses: supabase/setup-cli@v1
         with:
@@ -65,16 +82,11 @@ jobs:
           --context production
           --message "v$APP_VERSION ${{ github.sha }}: $(git log -1 --format=%s | head -c 150)"
 
-      # After the deploy, so a failed deploy never consumes a version. A manual
-      # redeploy of a version that is already tagged skips this step.
+      # After the deploy, so a failed deploy never consumes a version.
       - name: Tag and publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/v$APP_VERSION" >/dev/null; then
-            echo "v$APP_VERSION is already tagged; not creating a release."
-            exit 0
-          fi
           git tag "v$APP_VERSION"
           git push origin "v$APP_VERSION"
           gh release create "v$APP_VERSION" --title "v$APP_VERSION" --generate-notes --target "$GITHUB_SHA"

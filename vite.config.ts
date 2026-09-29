@@ -3,12 +3,13 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { readFileSync } from 'node:fs';
 
-// package.json is the single source of truth for the app version.
+// Calendar version (YYYY.MM.DD.N). deploy.yml stamps it into package.json in CI;
+// git keeps a 0.0.0 placeholder, which is what local builds show.
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: { __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? version) },
   plugins: [
     react(),
     /* Replaces the old hand-rolled public/sw.js, which was cache-first over a
