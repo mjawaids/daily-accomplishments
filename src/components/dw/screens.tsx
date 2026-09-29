@@ -1,10 +1,11 @@
 /* DailyWins — Timeline + Insights screens.
    Ported from the Claude Design handoff (app/screens.jsx). */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDW } from './useDW';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
-import { Avatar, DateHead, EntryCard, QuickComposer } from './components';
+import { Avatar, DateHead, EntryCard, Kbd, QuickComposer } from './components';
+import { isTypingTarget } from './keys';
 import {
   computeStreak,
   dayKey,
@@ -12,11 +13,20 @@ import {
   groupByDay,
   heatCells,
   categoryMix,
+  dayKeyTs,
+  dayLabel,
+  filterWins,
   isoLocal,
+  searchTerms,
+  shiftDayKey,
+  shortDay,
   weekBars,
 } from '../../lib/winsData';
 import { catColorVar, categoryColor } from '../../lib/categories';
 import { Empty } from './screens2';
+
+/** Style carrying a chip's place in the filter row, for the staggered reveal. */
+const stagger = (i: number) => ({ '--i': i }) as React.CSSProperties;
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -26,46 +36,38 @@ function firstName(name: string): string {
   return (name || 'there').split(' ')[0];
 }
 
-// ---- streak nudge banner ----
-function StreakNudge() {
-  const { entries } = useDW();
-  const streak = computeStreak(entries);
-  const today = isoLocal(new Date());
-  const hasToday = entries.some((e) => dayKey(e.ts) === today);
-  let title: string;
-  let sub: string;
-  let icon: 'flame' | 'spark';
-  if (hasToday && streak > 1) {
-    icon = 'flame';
-    title = `${streak}-day streak going strong`;
-    sub = `You've logged a win ${streak} days in a row. Keep it lit.`;
-  } else if (hasToday) {
-    icon = 'spark';
-    title = 'First win of the day logged';
-    sub = 'Nice start — come back tomorrow to build a streak.';
-  } else if (streak >= 1) {
-    icon = 'flame';
-    title = `Keep your ${streak}-day streak alive`;
-    sub = "Log just one win today so it doesn't reset.";
-  } else {
-    icon = 'spark';
-    title = 'Log a win to start a streak';
-    sub = 'Even the smallest thing counts.';
-  }
+// ---- streak nudge banner: only while today's win is still missing ----
+// (once it's logged, the header's StreakPill carries the streak)
+function StreakNudge({ streak }: { streak: number }) {
+  const atRisk = streak >= 1;
   return (
     <div className="dw-nudge dw-rise">
       <div className="ico">
-        <Icon name={icon} size={20} />
+        <Icon name={atRisk ? 'flame' : 'spark'} size={20} />
       </div>
       <div style={{ flex: 1 }}>
-        <div className="t">{title}</div>
-        <div className="s">{sub}</div>
-      </div>
-      <div className="dw-streak">
-        <Icon name="flame" size={15} style={{ color: 'var(--accent)' }} />
-        <span className="n">{streak}</span>
+        <div className="t">{atRisk ? `Keep your ${streak}-day streak alive` : 'Log a win to start a streak'}</div>
+        <div className="s">{atRisk ? "Log just one win today so it doesn't reset." : 'Even the smallest thing counts.'}</div>
       </div>
     </div>
+  );
+}
+
+// ---- compact streak count in the header; opens Insights ----
+function StreakPill({ streak, device }: { streak: number; device: Device }) {
+  const { setScreen } = useDW();
+  if (streak < 1) return null;
+  const label = `${streak}-day streak`;
+  return (
+    <button
+      className="dw-streak btn"
+      title={`${label}. See Insights`}
+      aria-label={`${label}. See Insights`}
+      onClick={() => setScreen('insights')}
+    >
+      <Icon name="flame" size={15} style={{ color: 'var(--accent)' }} />
+      <span className="n">{device === 'desktop' ? label : streak}</span>
+    </button>
   );
 }
 
@@ -89,23 +91,298 @@ function ScreenHead({ device, title, subtitle, right }: ScreenHeadProps) {
   );
 }
 
-// ============================================ TIMELINE
-export function Timeline({ device }: { device: Device }) {
-  const { entries, prefs, visibleDays, setVisibleDays, setScreen, catById } = useDW();
+interface DateInputProps {
+  day: string | null;
+  setDay: (d: string | null) => void;
+  label: string;
+}
 
-  const groups = useMemo(() => groupByDay(entries), [entries]);
-  const shown = groups.slice(0, visibleDays);
+/** The real, labelled date input, laid invisibly over its chip: screen
+    readers and the keyboard reach the native control, and a click or
+    Enter / Space opens the browser's picker. */
+function DateInput({ day, setDay, label }: DateInputProps) {
+  const openPicker = (el: HTMLInputElement) => {
+    try {
+      el.showPicker();
+    } catch {
+      /* unsupported, or already open: the field still takes typed dates */
+    }
+  };
+  return (
+    <input
+      type="date"
+      className="dw-dateinput"
+      aria-label={label}
+      max={isoLocal(new Date())}
+      value={day || ''}
+      onChange={(e) => setDay(e.target.value || null)}
+      onClick={(e) => openPicker(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        openPicker(e.currentTarget);
+      }}
+    />
+  );
+}
 
-  const headRight = (
-    <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
-      <button className="dw-iconbtn" title="Insights" onClick={() => setScreen('insights')}>
-        <Icon name="insights" size={19} />
-      </button>
-      <button className="dw-iconbtn" title="Profile" onClick={() => setScreen('profile')}>
-        <Avatar size={40} />
-      </button>
+interface DateChipProps {
+  day: string | null;
+  setDay: (d: string | null) => void;
+}
+
+// ---- date filter chip: "Any day", or the chosen day with previous / next /
+// back to any day. One element for both states, so the date input keeps focus
+// while a date is typed into it. ----
+function DateChip({ day, setDay }: DateChipProps) {
+  const today = isoLocal(new Date());
+  return (
+    <span className={'dw-chip dw-datechip' + (day ? ' set' : '')} style={stagger(0)}>
+      {day && (
+        <button type="button" className="step" aria-label="Previous day" onClick={() => setDay(shiftDayKey(day, -1))}>
+          <Icon name="chevL" size={15} sw={2.4} />
+        </button>
+      )}
+      <span className="lbl">
+        <Icon name="calendar" size={day ? 14 : 15} sw={day ? 2.1 : 2} />
+        <span aria-hidden="true">{day ? dayLabel(dayKeyTs(day)).replace(/^(\w{3})\w*/, '$1') : 'Any day'}</span>
+        {!day && <Icon name="chevD" size={13} sw={2.4} />}
+        <DateInput day={day} setDay={setDay} label="Filter by date" />
+      </span>
+      {day && (
+        <button
+          type="button"
+          className="step"
+          aria-label="Next day"
+          disabled={day >= today}
+          onClick={() => setDay(shiftDayKey(day, 1))}
+        >
+          <Icon name="chevR" size={15} sw={2.4} />
+        </button>
+      )}
+      {day && (
+        <button type="button" className="x" aria-label="Any day (clear date)" onClick={() => setDay(null)}>
+          <Icon name="x" size={13} sw={2.4} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+interface FilterPanelProps {
+  open: boolean;
+  inputRef: React.RefObject<HTMLInputElement>;
+  query: string;
+  setQuery: (q: string) => void;
+  day: string | null;
+  setDay: (d: string | null) => void;
+  catIds: string[];
+  toggleCat: (id: string) => void;
+  /** Escape pressed in an empty search field. */
+  onEscape: () => void;
+}
+
+// ---- search field + one row of filter chips: date, then categories ----
+function FilterPanel({ open, inputRef, query, setQuery, day, setDay, catIds, toggleCat, onEscape }: FilterPanelProps) {
+  const { categories } = useDW();
+  return (
+    <div id="dw-filterpanel" className={'dw-collapse bleed' + (open ? ' open' : '')}>
+      <div>
+        <div>
+          <div className="dw-filterpanel">
+            <div className="dw-searchfield">
+              <Icon name="search" size={17} />
+              <input
+                ref={inputRef}
+                type="search"
+                value={query}
+                placeholder="Search your wins"
+                aria-label="Search your wins"
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Escape') return;
+                  e.preventDefault();
+                  if (query) setQuery('');
+                  else onEscape();
+                }}
+              />
+              <span className="dw-kbhint dw-kbonly" aria-hidden="true">
+                <Kbd>Esc</Kbd>
+                {query ? 'to clear' : 'to close'}
+              </span>
+              {query && (
+                <button
+                  type="button"
+                  className="dw-clearbtn"
+                  aria-label="Clear search text"
+                  onClick={() => {
+                    setQuery('');
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <Icon name="x" size={15} sw={2.2} />
+                </button>
+              )}
+            </div>
+            <div className="dw-filterrow" role="group" aria-label="Filters">
+              <DateChip day={day} setDay={setDay} />
+              <span className="sep" style={stagger(1)} />
+              {categories.map((c, i) => {
+                const on = catIds.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={'dw-chip selectable' + (on ? ' active' : '')}
+                    style={{ ...catColorVar(c), ...stagger(i + 2) }}
+                    aria-pressed={on}
+                    onClick={() => toggleCat(c.id)}
+                  >
+                    <CatGlyph cat={c} size={20} />
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
+}
+
+// ============================================ TIMELINE
+export function Timeline({ device }: { device: Device }) {
+  const {
+    entries,
+    prefs,
+    visibleDays,
+    setVisibleDays,
+    setScreen,
+    catById,
+    categories,
+    timelineDay: day,
+    setTimelineDay: setDay,
+    openAddForDay,
+    sheetOpen,
+    categorySheet,
+  } = useDW();
+  const [query, setQuery] = useState('');
+  const [pickedCats, setPickedCats] = useState<string[]>([]);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // A category deleted while selected simply drops out of the filter.
+  const catIds = useMemo(
+    () => pickedCats.filter((id) => categories.some((c) => c.id === id)),
+    [pickedCats, categories]
+  );
+  const terms = useMemo(() => searchTerms(query), [query]);
+  const activeFilters = (terms.length ? 1 : 0) + (catIds.length ? 1 : 0) + (day ? 1 : 0);
+  const filtering = activeFilters > 0;
+  // The panel only closes on request, so it stays put while filters change;
+  // a day set from elsewhere (the Insights heatmap) opens it too.
+  const open = panelOpen || filtering;
+
+  const matches = useMemo(
+    () => filterWins(entries, { query, day, categoryIds: catIds }, catById),
+    [entries, query, day, catIds, catById]
+  );
+  const groups = useMemo(() => groupByDay(matches), [matches]);
+  // While filtering, show every match rather than paginating.
+  const shown = filtering ? groups : groups.slice(0, visibleDays);
+
+  const streak = computeStreak(entries);
+  const today = isoLocal(new Date());
+  const hasToday = entries.some((e) => dayKey(e.ts) === today);
+
+  const focusSearch = () => requestAnimationFrame(() => inputRef.current?.focus());
+  const clearFilters = () => {
+    setQuery('');
+    setPickedCats([]);
+    setDay(null);
+  };
+  const openPanel = () => {
+    setPanelOpen(true);
+    focusSearch();
+  };
+  const closePanel = () => {
+    clearFilters();
+    setPanelOpen(false);
+  };
+  /** Start over, keeping the panel open and ready to type. */
+  const resetFilters = () => {
+    clearFilters();
+    openPanel();
+  };
+  const toggleCat = (id: string) => {
+    setPanelOpen(true);
+    // Functional update: two quick toggles must not both start from the same render.
+    setPickedCats((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  };
+  const setDayKeepOpen = (d: string | null) => {
+    setPanelOpen(true);
+    setDay(d);
+  };
+
+  // "/" opens search from anywhere on the Timeline, unless the user is typing
+  // or a sheet is open over it (focus would jump behind the sheet).
+  const hasEntries = entries.length > 0;
+  const sheetShown = sheetOpen || !!categorySheet;
+  useEffect(() => {
+    if (!hasEntries || sheetShown) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      e.preventDefault();
+      setPanelOpen(true);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hasEntries, sheetShown]);
+
+  const headRight = (
+    <div className="dw-headact">
+      {hasEntries && (
+        <span className="dw-tipwrap">
+          <button
+            className={'dw-iconbtn' + (open ? ' active' : '')}
+            aria-label={open ? 'Close search and filters' : 'Search and filter'}
+            aria-expanded={open}
+            aria-controls="dw-filterpanel"
+            aria-keyshortcuts="/"
+            onClick={open ? closePanel : openPanel}
+          >
+            <Icon name="search" size={19} />
+          </button>
+          <span className="dw-tip" role="tooltip">
+            {open ? (
+              'Close and clear filters'
+            ) : (
+              <>
+                Search &amp; filter <Kbd>/</Kbd>
+              </>
+            )}
+          </span>
+        </span>
+      )}
+      {hasToday && <StreakPill streak={streak} device={device} />}
+      {device !== 'desktop' && (
+        <button className="dw-iconbtn" aria-label="Profile" title="Profile" onClick={() => setScreen('profile')}>
+          <Avatar size={40} />
+        </button>
+      )}
+    </div>
+  );
+
+  const summary = [
+    `${matches.length} ${matches.length === 1 ? 'win' : 'wins'}`,
+    terms.length ? `“${query.trim()}”` : '',
+    catIds.map((id) => catById(id).name).join(', '),
+    day ? shortDay(dayKeyTs(day)) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className={device === 'desktop' ? 'dw-canvas' : undefined}>
@@ -113,19 +390,71 @@ export function Timeline({ device }: { device: Device }) {
         device={device}
         subtitle={`${greeting()}, ${firstName(prefs.name)}`}
         title="Your wins"
-        right={device === 'desktop' ? null : headRight}
+        right={headRight}
       />
 
-      <div style={{ marginBottom: 16 }}>
-        <StreakNudge />
+      <FilterPanel
+        open={open}
+        inputRef={inputRef}
+        query={query}
+        setQuery={setQuery}
+        day={day}
+        setDay={setDayKeepOpen}
+        catIds={catIds}
+        toggleCat={toggleCat}
+        onEscape={() => (filtering ? inputRef.current?.blur() : closePanel())}
+      />
+
+      {/* composing and filtering take turns: the composer folds away while the panel is open */}
+      <div className={'dw-collapse bleed' + (open ? '' : ' open')}>
+        <div>
+          <div>
+            {!hasToday && (
+              <div style={{ marginBottom: 16 }}>
+                <StreakNudge streak={streak} />
+              </div>
+            )}
+            <div style={{ marginBottom: 8 }}>
+              <QuickComposer />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 18 }}>
-        <QuickComposer />
-      </div>
+      {filtering && groups.length > 0 && (terms.length > 0 || catIds.length > 0) && (
+        <div className="dw-results" aria-live="polite">
+          <span className="txt">{summary}</span>
+          {activeFilters >= 2 && (
+            <button className="dw-clear" onClick={resetFilters}>
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
 
-      {groups.length === 0 ? (
+      {entries.length === 0 ? (
         <Empty />
+      ) : groups.length === 0 ? (
+        <div className="dw-noresults">
+          <Icon name={day && activeFilters === 1 ? 'calendar' : 'search'} size={28} />
+          <p>
+            {day && activeFilters === 1
+              ? `Nothing logged on ${dayLabel(dayKeyTs(day))}.`
+              : terms.length > 0 && activeFilters === 1
+                ? `No wins match “${query.trim()}”.`
+                : 'No wins match these filters.'}
+          </p>
+          {day && activeFilters === 1 ? (
+            <button className="dw-btn sm" onClick={() => openAddForDay(day)}>
+              <Icon name="plus" size={16} sw={2.4} />
+              {`Log a win for ${shortDay(dayKeyTs(day))}`}
+            </button>
+          ) : (
+            <button className="dw-btn sm ghost" onClick={resetFilters}>
+              Clear filters
+            </button>
+          )}
+        </div>
       ) : (
         <div className="dw-feed" data-style="rail">
           {shown.map((g, gi) => (
@@ -141,7 +470,7 @@ export function Timeline({ device }: { device: Device }) {
                       ...(gi === 0 && i < 3 ? { animationDelay: i * 60 + 'ms' } : {}),
                     }}
                   >
-                    <EntryCard entry={e} style="rail" />
+                    <EntryCard entry={e} style="rail" highlight={terms} />
                   </div>
                 ))}
               </div>
@@ -159,7 +488,7 @@ export function Timeline({ device }: { device: Device }) {
             </div>
           )}
 
-          {shown.length >= groups.length && groups.length > 3 && (
+          {!filtering && shown.length >= groups.length && groups.length > 3 && (
             <div className="dw-credit">
               {`That's all ${entries.length} wins. `}
               <br />
@@ -181,7 +510,7 @@ export function Timeline({ device }: { device: Device }) {
 
 // ============================================ INSIGHTS
 export function Insights({ device }: { device: Device }) {
-  const { entries, setScreen, categories } = useDW();
+  const { entries, setScreen, categories, jumpToDay } = useDW();
   const streak = computeStreak(entries);
   const thisWeek = entriesThisWeek(entries);
   const total = entries.length;
@@ -311,9 +640,12 @@ export function Insights({ device }: { device: Device }) {
           }}
         >
           {cells.map((c, i) => (
-            <div
+            <button
               key={c.k}
+              className="dw-heatcell"
               title={`${c.c} on ${c.k}`}
+              aria-label={`${c.c} ${c.c === 1 ? 'win' : 'wins'} on ${dayLabel(dayKeyTs(c.k))}`}
+              onClick={() => jumpToDay(c.k)}
               style={{
                 aspectRatio: '1',
                 borderRadius: 4,
