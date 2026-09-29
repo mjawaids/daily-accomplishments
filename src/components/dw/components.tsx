@@ -148,7 +148,7 @@ export function QuickComposer() {
   };
 
   return (
-    <div className={'dw-composer' + (focused ? ' focused' : '')}>
+    <div className={'dw-composer' + (focused ? ' focused' : '') + (focused || text ? ' open' : '')}>
       <div className="row1">
         <Avatar size={34} />
         <textarea

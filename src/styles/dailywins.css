@@ -150,7 +150,8 @@
 .dw-composer{background:var(--surface);border:1px solid var(--line);border-radius:22px;
   box-shadow:var(--shadow);overflow:hidden;transition:.2s}
 .dw-composer.focused{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
-.dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 4px}
+.dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px}
+.dw-composer.open .row1{padding-bottom:4px}
 .av{border-radius:50%;flex:none;display:grid;place-items:center;overflow:hidden;
   background:var(--surface-3);color:var(--accent);font-weight:800;font-family:var(--font-display)}
 .dw-composer .av{width:34px;height:34px;font-size:14px}
