@@ -10,7 +10,7 @@ const TermsConditions: React.FC = () => {
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-8">
-            <div className="prose prose-lg dark:prose-invert max-w-none">
+            <div className="text-lg leading-relaxed text-slate-700 dark:text-slate-300">
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
                 <strong>Effective Date:</strong> January 1st, 2025
               </p>
@@ -22,9 +22,9 @@ const TermsConditions: React.FC = () => {
               </p>
 
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Company & Payments</h2>
-              <ul className="space-y-2 mb-6">
+              <ul className="list-disc pl-6 space-y-2 mb-6">
                 <li>DailyWins is sold via Paddle, which acts as the Merchant of Record. Paddle handles billing, taxes, receipts, and compliance.</li>
-                <li>By purchasing, you also agree to Paddle's <a href="https://paddle.com/legal/buyer-terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">Buyer Terms</a>.</li>
+                <li>By purchasing, you also agree to Paddle's <a href="https://paddle.com/legal/buyer-terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 underline underline-offset-2">Buyer Terms</a>.</li>
               </ul>
 
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Services</h2>
@@ -34,14 +34,14 @@ const TermsConditions: React.FC = () => {
               </p>
 
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Accounts & Usage</h2>
-              <ul className="space-y-2 mb-6">
+              <ul className="list-disc pl-6 space-y-2 mb-6">
                 <li>You must provide accurate information during signup.</li>
                 <li>You're responsible for maintaining your login credentials.</li>
                 <li>Misuse (fraud, abuse, violating laws) may result in account suspension.</li>
               </ul>
 
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white mt-8 mb-4">Refunds & Cancellations</h2>
-              <ul className="space-y-2 mb-6">
+              <ul className="list-disc pl-6 space-y-2 mb-6">
                 <li>Refunds follow our Refund Policy.</li>
                 <li>You may cancel your subscription anytime; access continues until the end of the billing period.</li>
               </ul>
