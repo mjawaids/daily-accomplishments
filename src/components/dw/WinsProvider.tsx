@@ -73,10 +73,21 @@ interface ToastState {
   msg: string;
   icon?: IconName;
   id: number;
+  /** Errors are announced assertively (role="alert"). */
+  tone?: 'info' | 'error';
 }
 
 export interface WinsContextValue {
   loading: boolean;
+  /** True when the last attempt to load wins from the server failed (the
+      entries shown, if any, are this device's cached copy). */
+  loadError: boolean;
+  retryLoad: () => void;
+  /** Changes saved on this device that haven't reached the server yet. */
+  pendingCount: number;
+  /** True while pending changes are being sent. */
+  syncing: boolean;
+  syncNow: () => Promise<void>;
   entries: Win[];
   screen: Screen;
   setScreen: (s: Screen) => void;
@@ -99,7 +110,7 @@ export interface WinsContextValue {
   visibleDays: number;
   setVisibleDays: React.Dispatch<React.SetStateAction<number>>;
   toast: ToastState | null;
-  showToast: (msg: string, icon?: IconName) => void;
+  showToast: (msg: string, icon?: IconName, tone?: 'info' | 'error') => void;
   celebrate: number;
   addWin: (input: { text: string; categoryId: string; ts?: number }) => Promise<void>;
   updateWin: (id: string, patch: { text: string; categoryId: string; ts: number }) => Promise<void>;
@@ -144,7 +155,8 @@ function loadPrefs(email: string, displayName?: string): Prefs {
   const fallback: Prefs = {
     name: displayName || (email ? email.split('@')[0] : 'there'),
     email,
-    theme: 'light',
+    // Follow the device until the person picks Light or Dark in Profile.
+    theme: 'sync',
   };
   try {
     const raw = localStorage.getItem(PREFS_KEY);
@@ -167,6 +179,10 @@ interface WinsProviderProps {
 
 export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut, children }: WinsProviderProps) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
   const [entries, setEntries] = useState<Win[]>([]);
   const [screen, setScreenRaw] = useState<Screen>('timeline');
   const [editing, setEditing] = useState<Win | null>(null);
@@ -199,11 +215,44 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     }
   }, [prefs]);
 
-  const showToast = useCallback((msg: string, icon?: IconName) => {
-    setToast({ msg, icon, id: Date.now() });
+  const showToast = useCallback((msg: string, icon?: IconName, tone: 'info' | 'error' = 'info') => {
+    setToast({ msg, icon, id: Date.now(), tone });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2400);
+    // Longer messages (errors, "saved on this device") need longer to read.
+    toastTimer.current = setTimeout(() => setToast(null), msg.length > 40 ? 5000 : 2400);
   }, []);
+
+  const refreshPending = useCallback(async () => {
+    try {
+      setPendingCount((await offlineManager.getSyncStatus()).pendingCount);
+    } catch {
+      /* IndexedDB unavailable: nothing can be pending */
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPending();
+    const t = setInterval(refreshPending, 5000);
+    return () => clearInterval(t);
+  }, [refreshPending]);
+
+  /** Confirms a write, or says it didn't reach the server and was queued. */
+  const confirmWrite = useCallback(
+    (synced: boolean, done: string, icon: IconName) => {
+      if (synced) {
+        showToast(done, icon);
+      } else {
+        showToast(
+          navigator.onLine
+            ? "Couldn't reach the server. Saved on this device and will sync later."
+            : "You're offline. Saved on this device and will sync when you're back.",
+          'sync'
+        );
+      }
+      refreshPending();
+    },
+    [showToast, refreshPending]
+  );
 
   const setScreen = useCallback((s: Screen) => {
     setScreenRaw(s);
@@ -268,10 +317,12 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
           if (error) throw error;
           const rows = (data || []) as Accomplishment[];
           setEntries(rows.map(toWin));
+          setLoadError(false);
           await offlineManager.cacheAccomplishments(rows);
           return;
         } catch (err) {
           console.error('Error loading from Supabase, falling back to cache:', err);
+          setLoadError(true);
         }
       }
       // Offline (or failed) → read from the IndexedDB cache.
@@ -279,21 +330,24 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       setEntries(cached.data.map(toWin));
     } catch (err) {
       console.error('Error loading accomplishments:', err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    offlineManager.init();
+  const retryLoad = useCallback(() => {
+    loadCategories();
     loadEntries();
-  }, [loadEntries]);
+  }, [loadCategories, loadEntries]);
 
-  // Online/offline handling + background sync.
-  useEffect(() => {
-    const handleOnline = async () => {
-      trackConnectivityEvent('online');
-      // Fire a 'sync' event only when there were offline changes to flush.
+  /** Sends queued changes, then reloads. Only one sync runs at a time, so the
+      online event and the Sync now button can't insert the same win twice. */
+  const syncNow = useCallback(async () => {
+    if (syncingRef.current || !navigator.onLine) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
       let hadPending = false;
       try {
         hadPending = (await offlineManager.getSyncStatus()).pendingCount > 0;
@@ -303,7 +357,24 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       await offlineManager.syncPendingOperations();
       if (hadPending) trackConnectivityEvent('sync');
       loadCategories();
-      loadEntries();
+      await loadEntries();
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+      refreshPending();
+    }
+  }, [loadCategories, loadEntries, refreshPending]);
+
+  useEffect(() => {
+    offlineManager.init();
+    loadEntries();
+  }, [loadEntries]);
+
+  // Online/offline handling + background sync.
+  useEffect(() => {
+    const handleOnline = () => {
+      trackConnectivityEvent('online');
+      void syncNow();
     };
     const handleOffline = () => trackConnectivityEvent('offline');
     window.addEventListener('online', handleOnline);
@@ -312,7 +383,7 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [loadEntries, loadCategories]);
+  }, [syncNow]);
 
   // ---- notification settings ----------------------------------------------
   // Loads (creating on first run) the server-side settings row, keeps the stored
@@ -470,18 +541,28 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       } = await supabase.auth.getUser();
       if (!user) return;
       const createdAt = ts ? new Date(ts).toISOString() : undefined;
-      const saved = await offlineManager.addAccomplishment({
-        text: text.trim(),
-        ...categoryWriteFields(categoryId),
-        user_id: user.id,
-        ...(createdAt ? { created_at: createdAt } : {}),
-      });
+      let saved: Accomplishment;
+      try {
+        saved = await offlineManager.addAccomplishment({
+          text: text.trim(),
+          ...categoryWriteFields(categoryId),
+          user_id: user.id,
+          ...(createdAt ? { created_at: createdAt } : {}),
+        });
+      } catch (err) {
+        // Not even the on-device queue took it (storage full or blocked).
+        console.error('Error saving win:', err);
+        showToast("Couldn't save your win. Please try again.", 'flag', 'error');
+        return;
+      }
       setEntries((prev) => [toWin(saved), ...prev].sort((a, b) => b.ts - a.ts));
-      setCelebrate((c) => c + 1);
-      showToast('Win logged — nice work!', 'check');
+      // A queued win comes back as the pending row, marked synced: false.
+      const synced = (saved as { synced?: boolean }).synced !== false;
+      if (synced) setCelebrate((c) => c + 1);
+      confirmWrite(synced, 'Win logged — nice work!', 'check');
       trackAccomplishmentEvent('add', analyticsLabel(resolveCategory(categories, categoryId)));
     },
-    [showToast, categories]
+    [confirmWrite, showToast, categories]
   );
 
   const updateWin = useCallback(
@@ -491,27 +572,41 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       // Online: writes to Supabase. Offline, or if that fails: queues the edit
       // (text, date and category) for sync. Either way the IndexedDB cache is
       // updated, so the edit survives a reload while offline.
-      await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
+      let synced: boolean;
+      try {
+        synced = await offlineManager.updateAccomplishment(id, text, createdAt, categoryWriteFields(patch.categoryId));
+      } catch (err) {
+        console.error('Error saving edit:', err);
+        showToast("Couldn't save your changes. Please try again.", 'flag', 'error');
+        return;
+      }
       setEntries((prev) =>
         prev
           .map((e) => (e.id === id ? { ...e, text, categoryId: patch.categoryId, ts: patch.ts } : e))
           .sort((a, b) => b.ts - a.ts)
       );
-      showToast('Entry updated', 'check');
+      confirmWrite(synced, 'Win updated', 'check');
       trackAccomplishmentEvent('edit', analyticsLabel(resolveCategory(categories, patch.categoryId)));
     },
-    [showToast, categories]
+    [confirmWrite, showToast, categories]
   );
 
   const deleteWin = useCallback(
     async (id: string) => {
       const removed = entries.find((e) => e.id === id);
-      await offlineManager.deleteAccomplishment(id);
+      let synced: boolean;
+      try {
+        synced = await offlineManager.deleteAccomplishment(id);
+      } catch (err) {
+        console.error('Error deleting win:', err);
+        showToast("Couldn't delete the win. Please try again.", 'flag', 'error');
+        return;
+      }
       setEntries((prev) => prev.filter((e) => e.id !== id));
-      showToast('Entry deleted', 'trash');
+      confirmWrite(synced, 'Win deleted', 'trash');
       if (removed) trackAccomplishmentEvent('delete', analyticsLabel(resolveCategory(categories, removed.categoryId)));
     },
-    [entries, showToast, categories]
+    [entries, confirmWrite, showToast, categories]
   );
 
   const clearAll = useCallback(async () => {
@@ -523,8 +618,9 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
       }
     }
     setEntries([]);
-    showToast('All entries cleared', 'trash');
-  }, [entries, showToast]);
+    showToast('All wins deleted', 'trash');
+    refreshPending();
+  }, [entries, showToast, refreshPending]);
 
   // ---- category management (online only: the offline queue covers wins, not
   // categories) ----------------------------------------------------------------
@@ -598,6 +694,11 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
 
   const value: WinsContextValue = {
     loading,
+    loadError,
+    retryLoad,
+    pendingCount,
+    syncing,
+    syncNow,
     entries,
     screen,
     setScreen,
@@ -650,12 +751,23 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
 // ---- Toast ----
 export function Toast() {
   const { toast } = useDW();
-  if (!toast) return null;
-  return (
+  // Both live regions stay mounted, so screen readers announce each new message.
+  const error = toast?.tone === 'error';
+  const body = toast && (
     <div className="dw-toast" key={toast.id}>
       <Icon name={toast.icon || 'check'} size={17} sw={2.4} />
       <span>{toast.msg}</span>
     </div>
+  );
+  return (
+    <>
+      <div role="status" aria-atomic="true">
+        {!error && body}
+      </div>
+      <div role="alert" aria-atomic="true">
+        {error && body}
+      </div>
+    </>
   );
 }
 

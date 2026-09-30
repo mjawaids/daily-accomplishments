@@ -238,7 +238,7 @@ async function newContext(vp, theme, scenario, accent) {
     return route.abort();
   });
   // Signed-in screens take their theme from the dw_prefs preference (default
-  // light), not the OS setting, so set it explicitly.
+  // Auto, which follows colorScheme); set it explicitly so each run is exact.
   await context.addInitScript((t) => {
     try {
       const prefs = JSON.parse(localStorage.getItem('dw_prefs') || '{}');

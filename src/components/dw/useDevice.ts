@@ -59,5 +59,6 @@ export function getStoredTheme(): Theme {
   } catch {
     /* ignore */
   }
-  return 'light';
+  // No saved choice yet: follow the device (Auto).
+  return 'sync';
 }

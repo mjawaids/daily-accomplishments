@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDW } from './useDW';
 import { isIosNeedsInstall } from '../../lib/onesignal';
+import { formatReminderTime } from '../../lib/userSettings';
 import { Icon } from './icons';
 
 /* Asks existing users, once per device, whether they want the evening reminder.
@@ -60,55 +61,24 @@ export function PushPrompt() {
   // additional device joining an account that already wants reminders.
   const alreadyOnElsewhere = settings.push_enabled;
 
+  // Shares the prompt slot with InstallPrompt; while that one shows, this one
+  // waits (see .dw-prompt--push in dailywins.css).
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: 16,
-        right: 16,
-        // Sits one card above InstallPrompt's slot so the two never overlap.
-        bottom: 'calc(168px + env(safe-area-inset-bottom))',
-        maxWidth: 380,
-        marginLeft: 'auto',
-        zIndex: 70,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 12,
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: 18,
-          padding: '14px 16px',
-          boxShadow: 'var(--shadow)',
-        }}
-      >
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            flex: 'none',
-            borderRadius: 12,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'var(--accent-soft)',
-            color: 'var(--accent)',
-          }}
-        >
+    <section className="dw-prompt dw-prompt--push" aria-labelledby="dw-push-title">
+      <div className="card">
+        <div className="ico">
           <Icon name="bell" size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>
+          <h2 className="t" id="dw-push-title">
             {alreadyOnElsewhere ? 'Add reminders on this device' : 'Want an evening nudge?'}
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '2px 0 10px' }}>
+          </h2>
+          <div className="s">
             {alreadyOnElsewhere
               ? 'Your reminders are on, but this device is not set up to receive them yet.'
-              : "We'll remind you at 8:00 PM to log a win. Change the time or turn it off any time in Profile."}
+              : `You'll get a reminder at ${formatReminderTime(settings.reminder_local_time)} to log a win. Change the time or turn it off any time in Profile.`}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="acts">
             <button className="dw-btn sm" disabled={pushBusy} onClick={() => setPushEnabled(true)}>
               <Icon name="bell" size={15} sw={2.2} />
               {pushBusy ? 'Enabling…' : alreadyOnElsewhere ? 'Enable here' : 'Remind me'}
@@ -118,15 +88,10 @@ export function PushPrompt() {
             </button>
           </div>
         </div>
-        <button
-          className="dw-iconbtn"
-          style={{ width: 30, height: 30, boxShadow: 'none', background: 'transparent' }}
-          onClick={handleDismiss}
-          title="Dismiss"
-        >
+        <button className="dw-iconbtn" onClick={handleDismiss} aria-label="Dismiss reminder prompt" title="Dismiss">
           <Icon name="x" size={16} />
         </button>
       </div>
-    </div>
+    </section>
   );
 }
