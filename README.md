@@ -20,6 +20,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Responsive shell** — A sidebar layout on desktop and a bottom tab bar + composer on mobile, driven from a single responsive component.
 - **Typography** — Bricolage Grotesque (display) + Hanken Grotesque (body).
 - **Delight** — Confetti on a new win, toasts, and subtle entrance animations (respecting `prefers-reduced-motion`).
+- **Design system of record** — The tokens and brand rules also live in a Claude Design system ([DailyWins](https://claude.ai/artifact/XJuytAvtF6nVVD9YRsNENg), private to the owner). New screens are mocked up there before they're built. UI work follows the `ui-ux` project skill (`.claude/skills/ui-ux/SKILL.md`) and is checked with `npm run ui:check`.
 
 ### 📱 Progressive Web App
 - **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop.
@@ -82,6 +83,7 @@ cp .env.example .env
 | `PADDLE_WEBHOOK_SECRET` | optional | Server-side Paddle webhook secret (Netlify) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ for functions | Server-side key for Netlify functions |
 | `ONESIGNAL_REST_API_KEY` | optional | **Secret.** Server-side OneSignal key (Netlify) |
+| `UI_CHECK_EMAIL` / `UI_CHECK_PASSWORD` | optional | Local only. A throwaway test account that `npm run ui:check` signs in with to screenshot the signed-in screens |
 
 Node 22 is pinned in `.nvmrc` — `@supabase/supabase-js` declares `engines: node >=22`.
 
@@ -202,12 +204,16 @@ npm run preview  # preview the production build
 npm run lint     # run ESLint
 npm test         # run unit tests (Vitest)
 npm run typecheck:functions   # typecheck the Netlify functions
+npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/ + axe WCAG 2.2 AA scan
 ```
+
+`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It always covers the signed-out screens (auth, pricing, policies). Timeline, Insights, Profile and the intro tour are included only when `.env` has real Supabase values and `UI_CHECK_EMAIL` / `UI_CHECK_PASSWORD`. It exits non-zero on serious or critical accessibility violations. Pass `--only=signin,pricing` to limit screens or `--no-axe` to skip the scan.
 
 ## 📁 Project Structure
 
 ```
 daily-accomplishments/
+├── .claude/skills/ui-ux/SKILL.md  # UI/UX playbook for Claude: design rules, checklist, Claude Design handoff
 ├── .github/workflows/
 │   ├── ci.yml                     # PR checks: lint, tests, typecheck, build, migration dry-run
 │   └── deploy.yml                 # main: migrate, deploy to Netlify, tag + release
@@ -258,7 +264,9 @@ daily-accomplishments/
 ├── netlify/functions/
 │   ├── evening-reminder.ts        # Scheduled (every 15 min) push reminder sender
 │   └── paddle-webhook.ts          # Paddle webhook (optional)
-├── scripts/check-build-env.mjs    # Fails the Netlify build if required VITE_* vars are missing
+├── scripts/
+│   ├── check-build-env.mjs        # Fails the Netlify build if required VITE_* vars are missing
+│   └── ui-check.mjs               # npm run ui:check: screenshots + axe accessibility scan
 └── vite.config.ts                 # Vite + PWA (Workbox) config; injects __APP_VERSION__
 ```
 (Unit tests sit beside the code as `*.test.ts`.)
