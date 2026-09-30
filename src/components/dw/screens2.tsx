@@ -64,6 +64,7 @@ export function Profile({ device }: { device: Device }) {
     categories,
     catById,
     setCategorySheet,
+    openTour,
   } = useDW();
   const atCategoryLimit = categories.length >= MAX_CATEGORIES;
   const [editing, setEditing] = useState(false);
@@ -350,6 +351,21 @@ export function Profile({ device }: { device: Device }) {
         </button>
       </div>
 
+      {/* help */}
+      <div className="dw-section-label">Help</div>
+      <div className="dw-prefcard" style={{ marginBottom: 18 }}>
+        <button className="dw-prefrow" style={{ width: '100%', textAlign: 'left' }} onClick={openTour}>
+          <div className="ico">
+            <Icon name="spark" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Replay intro</div>
+            <div className="s">A 30-second tour of how DailyWins works</div>
+          </div>
+          <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
+        </button>
+      </div>
+
       {/* account */}
       <div className="dw-section-label">Account &amp; data</div>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
@@ -402,7 +418,7 @@ export function Profile({ device }: { device: Device }) {
 
 // ============================================ EMPTY
 export function Empty() {
-  const { openAdd } = useDW();
+  const { openAdd, openTour } = useDW();
   return (
     <div className="dw-empty">
       <div className="ill dw-pop-in">
@@ -413,6 +429,9 @@ export function Empty() {
       <button className="dw-btn" onClick={openAdd}>
         <Icon name="plus" size={18} sw={2.4} />
         Log your first win
+      </button>
+      <button className="dw-linkbtn" onClick={openTour}>
+        New here? Take the 30-second tour
       </button>
     </div>
   );

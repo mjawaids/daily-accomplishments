@@ -473,8 +473,31 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-onb h2{font-family:var(--font-display);font-size:27px;font-weight:700;letter-spacing:-.02em;max-width:14ch}
 .dw-onb p{color:var(--ink-2);font-size:15px;max-width:30ch}
 .dw-dots{display:flex;gap:7px;justify-content:center}
-.dw-dots .d{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:.2s}
-.dw-dots .d.on{background:var(--accent);width:22px}
+.dw-dots .d{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:.2s;padding:0;position:relative}
+.dw-dots .d::before{content:'';position:absolute;inset:-9px -5px}/* bigger tap target */
+.dw-dots .d:hover{background:var(--faint)}
+.dw-dots .d.on{background:var(--accent);width:22px;border-radius:999px}
+.dw-dots .d:focus-visible,.dw-onb .dw-btn:focus-visible,.dw-onb .dw-iconbtn:focus-visible,.dw-linkbtn:focus-visible{
+  outline:2px solid var(--accent);outline-offset:3px}
+.dw-onb .hero{touch-action:pan-y}
+
+/* replayable tour: over the app — full screen on mobile, a centered card on desktop */
+.dw-onb-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:stretch;justify-content:center}
+.dw-onb-overlay .dw-onb{min-height:0;height:100%;width:100%}
+.dw-app[data-device="desktop"] .dw-onb-overlay{align-items:center;background:rgba(40,28,16,.42);backdrop-filter:blur(2px)}
+.dw-app[data-device="desktop"] .dw-onb-overlay .dw-onb{width:480px;max-width:calc(100% - 32px);height:min(640px,calc(100% - 48px));
+  border-radius:24px;box-shadow:0 24px 60px -18px rgba(0,0,0,.4);overflow:auto}
+@media (prefers-reduced-motion: no-preference){
+  .dw-onb-overlay{animation:dw-fade .2s forwards;opacity:0}
+  .dw-onb-overlay .dw-onb{animation:dw-onb-in .26s cubic-bezier(.2,.9,.25,1)}
+  .dw-onb-overlay.closing{animation:dw-onb-fade-out .18s forwards;opacity:1}
+  @keyframes dw-onb-in{from{transform:scale(.96) translateY(8px)}to{transform:none}}
+  @keyframes dw-onb-fade-out{to{opacity:0}}
+}
+
+.dw-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.dw-linkbtn{font-size:13.5px;font-weight:600;color:var(--accent-text,var(--accent));padding:6px 8px;border-radius:8px}
+.dw-linkbtn:hover{text-decoration:underline}
 
 /* empty state */
 .dw-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;

@@ -7,6 +7,7 @@ import { UpdateBanner } from './components/UpdateBanner';
 import { trackPageView, trackAuthEvent } from './lib/analytics';
 import { Auth } from './components/dw/Auth';
 import { Onboarding } from './components/dw/Onboarding';
+import { hasOnboarded, isFreshSignup, markOnboarded } from './lib/onboarding';
 import { WinsProvider } from './components/dw/WinsProvider';
 import { AppShell } from './components/dw/AppShell';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -17,10 +18,12 @@ import CheckoutSuccess from './pages/CheckoutSuccess';
 import { openCheckout } from './lib/paddle';
 import type { User } from '@supabase/supabase-js';
 
+/** Email sign-ups are caught in handleAuthSuccess; this catches accounts whose
+    first sign-in skips the form, i.e. Google OAuth returning from its redirect. */
+const needsIntro = (user: User | null | undefined) => !!user && isFreshSignup(user) && !hasOnboarded();
+
 type AppState = 'auth' | 'app';
 type AuthMode = 'signin' | 'signup';
-
-const ONBOARDED_KEY = 'dw_onboarded';
 
 /** Read at the moment it matters, not captured: the stale-alias cleanup can run
     long after it was requested (see clearPushAliasIfStale). */
@@ -40,6 +43,7 @@ function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
+      if (needsIntro(session?.user)) setPendingOnboarding(true);
       setLoading(false);
       if (!session?.user) void clearPushAliasIfStale(isSignedOut);
     });
@@ -50,6 +54,7 @@ function App() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setAppState(session?.user ? 'app' : 'auth');
+      if (needsIntro(session?.user)) setPendingOnboarding(true);
       setLoading(false);
       // Shared-device safety net. Must run here too, not only on the initial
       // getSession: plenty of sign-outs never reach handleSignOut — a session
@@ -101,7 +106,7 @@ function App() {
   const handleAuthSuccess = (mode: AuthMode) => {
     setAppState('app');
     trackAuthEvent('signin');
-    if (mode === 'signup' && !localStorage.getItem(ONBOARDED_KEY)) {
+    if (mode === 'signup' && !hasOnboarded()) {
       setPendingOnboarding(true);
     }
     const params = new URLSearchParams(location.search);
@@ -118,7 +123,7 @@ function App() {
   };
 
   const finishOnboarding = () => {
-    localStorage.setItem(ONBOARDED_KEY, '1');
+    markOnboarded();
     setPendingOnboarding(false);
   };
 
@@ -138,7 +143,7 @@ function App() {
   // Unauthenticated users go straight to the sign in / register screen.
   const renderHome = () => {
     if (user && pendingOnboarding) {
-      return <Onboarding onDone={finishOnboarding} />;
+      return <Onboarding mode="first-run" onDone={finishOnboarding} />;
     }
     if (user) {
       // OAuth providers (e.g. Google) put the display name + photo in user_metadata.
