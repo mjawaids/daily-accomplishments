@@ -60,6 +60,9 @@ drift to the user rather than silently picking one.
    It saves screenshots to `ui-shots/` and runs an axe-core WCAG 2.2 AA scan.
    Signed-out screens are named `<screen>-<mobile|desktop>-<light|dark>.png`,
    signed-in ones `<screen>-<scenario>-<mobile|desktop>-<light|dark>.png`.
+   Screens whose content scrolls also get a `-full.png` with the whole scroll
+   area laid out, so check below the fold too. `--accent=<names>` (or `all`)
+   renders the other brand accents, adding `-<accent>` to file names.
 4. **Open the screenshots for the screens you changed** with Read, in both
    widths and both themes, and review them against the checklist below.
 5. Fix, re-run, and repeat until the screenshots look right and axe reports no
@@ -70,7 +73,13 @@ drift to the user rather than silently picking one.
 
 - Screens: `signin`, `signup`, `pricing`, `privacy`, `terms`, `refund`
   (signed out), and `timeline`, `insights`, `profile`, `add` (the add-win
-  sheet) and `tour` (signed in).
+  sheet), `search` (search and filters open, one category picked),
+  `category` (the category editor sheet), `push` (the evening-reminder
+  prompt), `install` (the install prompt), `update` (the new-version banner),
+  `tour` and `log` (logs a win from the composer and shows the result; in the
+  `error` and `offline` scenarios that is a save that didn't reach the server)
+  (signed in). A screen whose state doesn't exist in a scenario (no wins to
+  search in `empty`) is skipped and listed at the end.
 - Signed-in screens run against a fake Supabase inside the browser
   (`scripts/ui-check/fake-supabase.mjs`). No account or secret is needed, and
   the check never contacts a real project: it forces a fake Supabase URL and

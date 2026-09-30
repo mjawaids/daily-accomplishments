@@ -207,7 +207,7 @@ npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/
 npm run typecheck:ui-check    # typecheck the ui:check fixtures against the database types
 ```
 
-`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet and the intro tour). Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--no-axe` skips the scan.
+`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet, search and filters, the category editor, the reminder and install prompts, the update banner, the intro tour, and logging a win). Screens that scroll also get a `-full.png` covering the whole scroll area. Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--accent=forest` (or `all`) renders another brand accent, `--no-axe` skips the scan.
 
 ## 📁 Project Structure
 
@@ -267,7 +267,7 @@ daily-accomplishments/
 ├── scripts/
 │   ├── check-build-env.mjs        # Fails the Netlify build if required VITE_* vars are missing
 │   ├── ui-check.mjs               # npm run ui:check: screenshots + axe accessibility scan
-│   └── ui-check/                  # Fake Supabase + fixture scenarios for ui:check
+│   └── ui-check/                  # Fake Supabase, fixture scenarios and a PWA-update stub for ui:check
 └── vite.config.ts                 # Vite + PWA (Workbox) config; injects __APP_VERSION__
 ```
 (Unit tests sit beside the code as `*.test.ts`.)
