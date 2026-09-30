@@ -51,18 +51,15 @@ function Sidebar() {
       </div>
       {/* user chip opens Profile (no separate Profile nav link) */}
       <button
-        className={'dw-navitem' + (screen === 'profile' ? ' active' : '')}
+        className={'dw-profilechip' + (screen === 'profile' ? ' active' : '')}
         title="Profile"
         aria-current={screen === 'profile' ? 'page' : undefined}
         onClick={() => setScreen('profile')}
-        style={{ marginTop: 'auto', gap: 10, padding: '10px 8px', borderTop: '1px solid var(--line)', borderRadius: 0 }}
       >
         <Avatar size={36} />
-        <div className="lbl" style={{ minWidth: 0, fontSize: 13, textAlign: 'left' }}>
-          <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {prefs.name}
-          </div>
-          <div className="sub">Free plan</div>
+        <div className="who">
+          <div className="name">{prefs.name}</div>
+          <div className="sub">View profile</div>
         </div>
       </button>
     </nav>

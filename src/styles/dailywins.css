@@ -185,7 +185,7 @@
   box-shadow:var(--shadow);overflow:hidden;transition:.2s}
 .dw-composer.focused{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
 /* the card draws the ring for its textarea */
-.dw-composer textarea:focus-visible{outline:none}
+.dw-app .dw-composer textarea:focus-visible{outline:none}
 .dw-composer:has(textarea:focus-visible){box-shadow:var(--shadow),0 0 0 2px var(--accent-text)}
 .dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px}
 .dw-composer.open .row1{padding-bottom:4px}
@@ -298,8 +298,8 @@
   transition:background .15s,border-color .15s,box-shadow .15s}
 .dw-searchfield:focus-within{background:var(--surface);border-color:color-mix(in oklab,var(--accent) 50%,var(--line));
   box-shadow:0 0 0 3px var(--accent-soft)}
-.dw-searchfield:has(input:focus-visible){border-color:var(--accent-text)}
-.dw-searchfield input:focus-visible{outline:none}
+.dw-searchfield:has(input:focus-visible){border-color:var(--accent-text);box-shadow:0 0 0 1px var(--accent-text)}
+.dw-app .dw-searchfield input:focus-visible{outline:none}/* the field draws the ring */
 .dw-searchfield>svg{color:var(--muted);flex:none}
 .dw-searchfield input{flex:1;min-width:0;height:100%;border:none;background:transparent;font-size:16px;
   color:var(--ink);-webkit-appearance:none;appearance:none}
@@ -399,6 +399,15 @@
 .dw-navitem .ct{font-size:12px;color:var(--muted);font-weight:600}
 .dw-navitem .sub{font-size:12px;color:var(--muted)}
 .dw-navitem.active .ct,.dw-navitem.active .sub{color:inherit}
+/* sidebar user card, opens Profile */
+.dw-profilechip{margin-top:auto;display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);text-align:left;transition:.14s}
+.dw-profilechip:hover{background:var(--surface-2)}
+.dw-profilechip .who{flex:1;min-width:0;font-size:14.5px}
+.dw-profilechip .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dw-profilechip .sub{font-size:13px;color:var(--muted)}
+.dw-profilechip.active{background:var(--accent-soft);border-color:color-mix(in oklab,var(--accent) 35%,var(--line))}
+.dw-profilechip.active .name,.dw-profilechip.active .sub{color:var(--accent-text)}
 
 /* ============================================================ FAB */
 .dw-fab{position:absolute;right:18px;bottom:90px;width:58px;height:58px;border-radius:20px;z-index:25;
@@ -437,7 +446,7 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-inputrow:focus-within{border-color:color-mix(in oklab,var(--accent) 50%,var(--line));background:var(--surface)}
 .dw-inputrow:has(input:focus-visible){outline:2px solid var(--accent-text);outline-offset:2px}
 .dw-inputrow input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;height:100%}
-.dw-inputrow input:focus-visible{outline:none}/* the row draws the ring */
+.dw-app .dw-inputrow input:focus-visible{outline:none}/* the row draws the ring */
 .dw-inputrow svg{color:var(--muted);flex:none}
 
 /* ============================================================ auth */
