@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck:functions": "tsc --noEmit -p tsconfig.netlify.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "ui:check": "node scripts/ui-check.mjs",
+    "typecheck:ui-check": "tsc --noEmit --allowJs --checkJs --strict --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types vite/client scripts/ui-check/scenarios.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -22,6 +24,7 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.9.1",
     "@netlify/functions": "^6.0.0",
     "@types/node": "^22.20.3",
@@ -33,6 +36,7 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",

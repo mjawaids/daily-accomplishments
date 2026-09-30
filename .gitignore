@@ -26,3 +26,6 @@ dist-ssr
 
 # Netlify CLI build output
 .netlify
+
+# npm run ui:check output
+ui-shots
