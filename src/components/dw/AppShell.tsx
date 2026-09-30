@@ -14,6 +14,7 @@ import { Profile } from './screens2';
 import { InstallPrompt } from '../InstallPrompt';
 import { PushPrompt } from './PushPrompt';
 import { CategorySheet } from './CategorySheet';
+import { Onboarding } from './Onboarding';
 
 // ---- desktop sidebar ----
 function Sidebar() {
@@ -98,7 +99,7 @@ const SCREENS: Record<'timeline' | 'insights' | 'profile', (p: { device: Device 
 };
 
 export function AppShell() {
-  const { screen, loading, prefs } = useDW();
+  const { screen, loading, prefs, tourOpen, closeTour } = useDW();
   const device = useDevice();
   const theme = useResolvedTheme(prefs.theme);
   const Screen = SCREENS[screen] || Timeline;
@@ -142,6 +143,7 @@ export function AppShell() {
       <Confetti />
       <InstallPrompt />
       <PushPrompt />
+      {tourOpen && <Onboarding mode="replay" onDone={closeTour} />}
     </div>
   );
 }

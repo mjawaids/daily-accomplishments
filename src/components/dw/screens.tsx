@@ -266,6 +266,7 @@ export function Timeline({ device }: { device: Device }) {
     openAddForDay,
     sheetOpen,
     categorySheet,
+    tourOpen,
   } = useDW();
   const [query, setQuery] = useState('');
   const [pickedCats, setPickedCats] = useState<string[]>([]);
@@ -326,9 +327,9 @@ export function Timeline({ device }: { device: Device }) {
   };
 
   // "/" opens search from anywhere on the Timeline, unless the user is typing
-  // or a sheet is open over it (focus would jump behind the sheet).
+  // or a sheet or the intro tour is open over it (focus would jump behind it).
   const hasEntries = entries.length > 0;
-  const sheetShown = sheetOpen || !!categorySheet;
+  const sheetShown = sheetOpen || !!categorySheet || tourOpen;
   useEffect(() => {
     if (!hasEntries || sheetShown) return;
     const onKey = (e: KeyboardEvent) => {

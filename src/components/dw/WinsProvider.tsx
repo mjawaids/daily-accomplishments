@@ -6,9 +6,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { offlineManager } from '../../lib/offline';
 import { trackAccomplishmentEvent, trackConnectivityEvent } from '../../lib/analytics';
+import { stripTourParam, wantsTour } from '../../lib/onboarding';
 import { toWin } from '../../lib/winsData';
 import type { Win } from '../../lib/winsData';
 import {
@@ -130,6 +132,10 @@ export interface WinsContextValue {
   pushBusy: boolean;
   setPushEnabled: (on: boolean) => Promise<void>;
   updateSettings: (patch: UserSettingsPatch) => Promise<void>;
+  /** True while the replayable intro tour is shown over the app. */
+  tourOpen: boolean;
+  openTour: () => void;
+  closeTour: () => void;
 }
 
 const PREFS_KEY = 'dw_prefs';
@@ -180,6 +186,9 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
   const [categories, setCategoriesRaw] = useState<Category[]>(() => cachedCategories || DEFAULT_CATEGORIES);
   const [categoriesReady, setCategoriesReady] = useState(!!cachedCategories);
   const [categorySheet, setCategorySheet] = useState<CategorySheetState>(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -202,6 +211,22 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     setEditing(null);
     setCategorySheet(null);
   }, []);
+
+  const openTour = useCallback(() => {
+    setSheetOpen(false);
+    setCategorySheet(null);
+    setTourOpen(true);
+  }, []);
+  const closeTour = useCallback(() => setTourOpen(false), []);
+
+  // ?tour=1 deep link (support replies, release notes): open the tour, then
+  // drop the param so a reload or Back doesn't reopen it. It survives the auth
+  // screen, so it also works for someone who has to sign in first.
+  useEffect(() => {
+    if (!wantsTour(location.search)) return;
+    openTour();
+    navigate({ pathname: location.pathname, search: stripTourParam(location.search), hash: location.hash }, { replace: true });
+  }, [location.search, location.pathname, location.hash, navigate, openTour]);
 
   const setCategories = useCallback(
     (next: Category[]) => {
@@ -614,6 +639,9 @@ export function WinsProvider({ userId, userEmail, userName, avatarUrl, onSignOut
     pushBusy,
     setPushEnabled,
     updateSettings,
+    tourOpen,
+    openTour,
+    closeTour,
   };
 
   return <WinsContext.Provider value={value}>{children}</WinsContext.Provider>;

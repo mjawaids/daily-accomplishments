@@ -11,7 +11,8 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Quick composer** — An inline composer on the timeline (`Ctrl/⌘ + Enter` to save); a full sheet (with category picker and **back-dating**) for editing or logging a missed win.
 - **Streaks & nudges** — A streak counter and a contextual nudge banner that encourages you to keep your run alive.
 - **Insights** — Stat cards (streak, this week, total, best day), a last-7-days bar chart, a category-mix breakdown, and a 12-week activity heatmap — computed over your full history.
-- **Profile** — Edit your name/email, switch theme, manage push reminders and their time, manage categories, and review per-category counts. The footer shows the running version. A weekly digest is listed as "Soon" and is not implemented yet.
+- **Onboarding intro** — A 3-step intro carousel shown once to new accounts, whether they sign up with email or Google. Replay it any time from **Profile → Help → Replay intro**, from the "New here? Take the 30-second tour" link on the empty timeline, or by opening the app with `?tour=1` (the param is removed once the tour opens). Navigate with Next/Back, the step dots, ←/→ keys or a swipe; Esc closes it.
+- **Profile** — Edit your name/email, switch theme, manage push reminders and their time, manage categories, replay the intro, and review per-category counts. The footer shows the running version. A weekly digest is listed as "Soon" and is not implemented yet.
 
 ### 🎨 Design & UX
 - **Warm, custom design system** — Hand-built design tokens (`src/styles/dailywins.css`) scoped under `.dw-app`, themed via data attributes. Brand mark is a rising sun + checkmark in a sunrise gradient.
@@ -34,7 +35,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Real-time-ready** — Data is keyed to your user and synced through Supabase.
 
 ### 📈 Analytics & Billing
-- **Google Analytics** (optional) — Page views, auth events, win add/edit/delete, connectivity, and the PWA install funnel.
+- **Google Analytics** (optional) — Page views, auth events, win add/edit/delete, connectivity, the PWA install funnel, and intro tour opens/completions/closes.
 - **Pro plan via Paddle** (optional) — A `/pricing` page (the Pro plan is still marked "Coming Soon"), a Paddle checkout flow, and a Netlify webhook function that records subscription state in a `profiles` table. See [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md).
 
 ## 🏗️ Tech Stack
@@ -230,7 +231,7 @@ daily-accomplishments/
 │   │   │   ├── CategorySheet.tsx  # Add / edit / delete categories
 │   │   │   ├── PushPrompt.tsx     # One-time push reminder opt-in
 │   │   │   ├── Auth.tsx           # Email/password + Google auth
-│   │   │   ├── Onboarding.tsx     # 3-step intro (after signup)
+│   │   │   ├── Onboarding.tsx     # 3-step intro: first run after signup, replayable overlay
 │   │   │   ├── icons.tsx          # Icon set + brand mark + category glyphs
 │   │   │   ├── keys.ts            # Keyboard-shortcut helpers
 │   │   │   └── useDevice.ts       # Responsive + theme hooks
@@ -246,6 +247,7 @@ daily-accomplishments/
 │   │   ├── categories.ts          # User categories: colors, icons, CRUD, defaults
 │   │   ├── userSettings.ts        # Notification preferences + timezone
 │   │   ├── onesignal.ts           # OneSignal web push wrapper
+│   │   ├── onboarding.ts          # Intro "seen" flag, first-sign-in detection, ?tour=1
 │   │   ├── analytics.ts           # Google Analytics helpers
 │   │   └── paddle.ts              # Paddle checkout (optional)
 │   ├── pages/                     # Pricing, checkout success, policy routes
