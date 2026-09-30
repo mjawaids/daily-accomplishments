@@ -3,7 +3,7 @@
    the empty state or ?tour=1 as an overlay on top of the app ("replay").
    Ported from the Claude Design handoff (app/screens2.jsx). */
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { Icon, Logo, CatGlyph } from './icons';
 import type { IconName } from './icons';
 import { DEFAULT_CATEGORIES, catColorVar, categoryColor } from '../../lib/categories';
@@ -34,6 +34,13 @@ const ONB: Step[] = [
     title: 'Reflect & look back',
     body: 'Browse a timeline of everything you’ve achieved, see your patterns, and remember how far you’ve come.',
   },
+];
+
+/** Step 1 chip positions (Work, Health, Learning): top-left, top-right, bottom-centre. */
+const CHIP_SPOTS: CSSProperties[] = [
+  { top: 16, left: 12 },
+  { top: 16, right: 12 },
+  { bottom: 16, left: 0, right: 0, marginInline: 'auto' },
 ];
 
 export type OnboardingMode = 'first-run' | 'replay';
@@ -169,8 +176,10 @@ export function Onboarding({ onDone, mode = 'first-run' }: { onDone: () => void;
             className="dw-chip dw-pop-in"
             style={{
               position: 'absolute',
-              top: [20, 140, 30][i],
-              left: [16, 24, 130][i],
+              // Anchored to the art's edges, not fixed offsets, so no chip is
+              // clipped at either art size (200px mobile, 230px desktop).
+              ...CHIP_SPOTS[i],
+              width: 'max-content',
               animationDelay: i * 90 + 120 + 'ms',
               boxShadow: 'var(--shadow-sm)',
               ...catColorVar(chipCats[i]),
