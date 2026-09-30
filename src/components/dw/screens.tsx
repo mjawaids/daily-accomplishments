@@ -714,19 +714,18 @@ export function Insights({ device }: { device: Device }) {
         </div>
       </div>
 
-      <div className="dw-nudge">
-        <div className="ico">
-          <Icon name="spark" size={20} />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div className="t">{mix[0] && mix[0].count ? `${mix[0].category.name} is your top theme` : 'Start logging to see patterns'}</div>
-          <div className="s">
-            {mix[0] && mix[0].count
-              ? `${mix[0].pct}% of your wins. A balanced week mixes work with health & personal.`
-              : 'Your trends will appear here.'}
+      {/* with no wins yet, the nudge at the top already says what to do */}
+      {mix[0] && mix[0].count > 0 && (
+        <div className="dw-nudge">
+          <div className="ico">
+            <Icon name="spark" size={20} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="t">{`${mix[0].category.name} is your top theme`}</div>
+            <div className="s">{`${mix[0].pct}% of your wins. A balanced week mixes work with health & personal.`}</div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
