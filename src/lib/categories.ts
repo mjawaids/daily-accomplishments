@@ -81,10 +81,14 @@ export function categoryColor(cat: Pick<Category, 'color'>): string {
   return `var(--cat-${cat.color})`;
 }
 
-/** Inline style that feeds a category's color to `.dw-chip.active` and
-    `.dw-node` via the --cat-color custom property. */
+/** Inline style that feeds a category's color to `.dw-node` (--cat-color) and
+    to `.dw-chip.active` / `.dw-iconpick.active` (--cat-color-strong, the same
+    hue dark enough to hold white text). */
 export function catColorVar(cat: Pick<Category, 'color'>): CSSProperties {
-  return { '--cat-color': categoryColor(cat) } as CSSProperties;
+  return {
+    '--cat-color': categoryColor(cat),
+    '--cat-color-strong': `var(--cat-${cat.color}-strong)`,
+  } as CSSProperties;
 }
 
 /** Finds a win's category, mapping `legacy:<key>` ids onto the user's row. */

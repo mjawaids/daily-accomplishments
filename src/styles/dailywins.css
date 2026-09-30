@@ -21,16 +21,32 @@
   --cat-teal:oklch(0.60 0.10 200);
   --cat-orange:oklch(0.65 0.15 45);
   --cat-slate:oklch(0.55 0.03 250);
+  /* the same hues at a lightness that holds white text at 4.5:1 or more
+     (active chips, picked icons): same C and h, L 0.52 */
+  --cat-blue-strong:oklch(0.52 0.13 250);
+  --cat-rose-strong:oklch(0.52 0.15 18);
+  --cat-violet-strong:oklch(0.52 0.14 300);
+  --cat-green-strong:oklch(0.52 0.12 152);
+  --cat-amber-strong:oklch(0.52 0.13 75);
+  --cat-teal-strong:oklch(0.52 0.10 200);
+  --cat-orange-strong:oklch(0.52 0.15 45);
+  --cat-slate-strong:oklch(0.52 0.03 250);
   /* the original fixed accents, still used as UI colors (danger, confetti) */
   --cat-work:var(--cat-blue);
   --cat-personal:var(--cat-rose);
   --cat-learning:var(--cat-violet);
   --cat-health:var(--cat-green);
+  /* danger: text/icons on surfaces, and a fill that holds white text */
+  --danger:oklch(0.52 0.15 18);
+  --danger-fill:oklch(0.52 0.15 18);
 
   /* brand accent (overridden per data-accent) */
   --accent:#e8704a;
   --accent-2:#f2b134;
   --accent-ink:#ffffff;
+  /* filled accent (buttons, FAB, switch): darkened where needed so
+     --accent-ink holds 4.5:1; the brand --accent is unchanged elsewhere */
+  --accent-strong:color-mix(in oklab, var(--accent) 85%, #000);
 
   /* light surfaces (warm) */
   --bg:#fbf5ef;
@@ -58,10 +74,10 @@
 }
 
 /* ---- accent themes ---- */
-.dw-app[data-accent="sunrise"]{--accent:#e8704a;--accent-2:#f2b134;}
-.dw-app[data-accent="forest"]{--accent:#3f8f63;--accent-2:#cdb667;}
-.dw-app[data-accent="indigo"]{--accent:#6366d8;--accent-2:#7aa2e8;}
-.dw-app[data-accent="berry"]{--accent:#c14a72;--accent-2:#e89bb0;}
+.dw-app[data-accent="sunrise"]{--accent:#e8704a;--accent-2:#f2b134;--accent-strong:color-mix(in oklab, var(--accent) 85%, #000);}
+.dw-app[data-accent="forest"]{--accent:#3f8f63;--accent-2:#cdb667;--accent-strong:color-mix(in oklab, var(--accent) 93%, #000);}
+.dw-app[data-accent="indigo"]{--accent:#6366d8;--accent-2:#7aa2e8;--accent-strong:var(--accent);}
+.dw-app[data-accent="berry"]{--accent:#c14a72;--accent-2:#e89bb0;--accent-strong:var(--accent);}
 
 /* ---- fonts ---- */
 .dw-app[data-font="bricolage"]{--font-display:'Bricolage Grotesque',Georgia,serif;--font-body:'Hanken Grotesque',system-ui,sans-serif;}
@@ -83,8 +99,9 @@
   --shadow:0 16px 40px -16px rgba(0,0,0,0.6);
   --shadow-sm:0 6px 18px -10px rgba(0,0,0,0.55);
   --accent-soft:color-mix(in oklab, var(--accent) 20%, var(--surface));
-  --accent-text:color-mix(in oklab, var(--accent) 82%, #fff);
+  --accent-text:color-mix(in oklab, var(--accent) 70%, #fff);
   --accent-ink:#ffffff;
+  --danger:oklch(0.70 0.15 18);
 }
 
 /* ============================================================ base */
@@ -101,6 +118,8 @@
 .dw-app input,.dw-app textarea,.dw-app select{font-family:inherit;color:inherit}
 .dw-display{font-family:var(--font-display);letter-spacing:-0.02em;line-height:1.04}
 .dw-mono{font-family:ui-monospace,'SF Mono',Menlo,monospace}
+/* one visible keyboard focus ring for every control in the app */
+.dw-app :is(button,a,input,textarea,select,[tabindex]):focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
 
 /* ============================================================ device frames */
 .dw-app[data-device="mobile"]{ --pad:18px; }
@@ -131,8 +150,9 @@
 .dw-top{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px}
 .dw-top .greet{font-size:13px;color:var(--muted);font-weight:600}
 .dw-top h1{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:-0.025em;margin-top:1px}
-.dw-iconbtn{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
+.dw-iconbtn{position:relative;width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
   background:var(--surface);box-shadow:var(--shadow-sm);color:var(--ink-2);transition:.18s}
+.dw-iconbtn::after{content:'';position:absolute;inset:min(-2px,calc((100% - 44px) / 2))}
 .dw-iconbtn:hover{color:var(--ink);transform:translateY(-1px)}
 .dw-iconbtn:active{transform:scale(.94)}
 
@@ -140,7 +160,7 @@
 .dw-streak{display:inline-flex;align-items:center;gap:7px;padding:7px 13px 7px 10px;border-radius:999px;
   background:linear-gradient(100deg,color-mix(in oklab,var(--accent) 16%,var(--surface)),color-mix(in oklab,var(--accent-2) 18%,var(--surface)));
   border:1px solid color-mix(in oklab,var(--accent) 22%,transparent);font-weight:700;font-size:13px;color:var(--ink)}
-.dw-streak .n{font-family:var(--font-display);color:var(--accent)}
+.dw-streak .n{font-family:var(--font-display);color:var(--accent-text)}
 
 /* ============================================================ category chips */
 /* CatGlyph (.ic) outside a chip: profile rows, insights mix, editor preview */
@@ -149,12 +169,14 @@
   font-size:12.5px;font-weight:600;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);
   transition:.15s;white-space:nowrap}
 .dw-chip .ic{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:none}
-.dw-chip.sm{padding:3px 9px 3px 4px;font-size:11.5px}
+.dw-chip.sm{padding:3px 9px 3px 4px;font-size:12px}
+.dw-chip.selectable{position:relative;min-height:32px}
+.dw-chip.selectable::after{content:'';position:absolute;left:0;right:0;top:50%;height:max(100%,44px);transform:translateY(-50%)}
 .dw-chip.sm .ic{width:17px;height:17px;border-radius:6px}
 .dw-chip.selectable{cursor:pointer}
 .dw-chip.selectable:hover{border-color:var(--faint)}
 .dw-chip.active{color:#fff;border-color:transparent}
-.dw-chip.active{background:var(--cat-color,var(--accent))}
+.dw-chip.active{background:var(--cat-color-strong,var(--accent-strong))}
 /* on active selectable chip, keep glyph legible */
 .dw-chip.selectable.active .ic{background:rgba(255,255,255,.26)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
 
@@ -162,21 +184,24 @@
 .dw-composer{background:var(--surface);border:1px solid var(--line);border-radius:22px;
   box-shadow:var(--shadow);overflow:hidden;transition:.2s}
 .dw-composer.focused{border-color:color-mix(in oklab,var(--accent) 45%,var(--line))}
+/* the card draws the ring for its textarea */
+.dw-composer textarea:focus-visible{outline:none}
+.dw-composer:has(textarea:focus-visible){box-shadow:var(--shadow),0 0 0 2px var(--accent-text)}
 .dw-composer .row1{display:flex;align-items:flex-start;gap:12px;padding:16px}
 .dw-composer.open .row1{padding-bottom:4px}
 .av{border-radius:50%;flex:none;display:grid;place-items:center;overflow:hidden;
-  background:var(--surface-3);color:var(--accent);font-weight:800;font-family:var(--font-display)}
+  background:var(--surface-3);color:var(--accent-text);font-weight:800;font-family:var(--font-display)}
 .dw-composer .av{width:34px;height:34px;font-size:14px}
-.dw-composer textarea{flex:1;border:none;outline:none;resize:none;background:transparent;
+.dw-composer textarea{flex:1;border:none;resize:none;background:transparent;
   font-size:16px;line-height:1.5;color:var(--ink);min-height:26px;padding-top:5px}
 .dw-composer textarea::placeholder{color:var(--faint)}
 .dw-composer .tools{display:flex;align-items:center;gap:8px;padding:8px 14px 14px 62px;flex-wrap:wrap}
 .dw-composer .spacer{flex:1}
-.dw-catpick{display:flex;gap:7px;flex-wrap:wrap}
+.dw-catpick{display:flex;gap:12px 8px;flex-wrap:wrap}
 
 /* primary button */
 .dw-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 18px;
-  border-radius:13px;font-weight:700;font-size:14.5px;background:var(--accent);color:var(--accent-ink);
+  border-radius:13px;font-weight:700;font-size:14.5px;background:var(--accent-strong);color:var(--accent-ink);
   box-shadow:0 6px 16px -8px color-mix(in oklab,var(--accent) 80%,transparent);transition:.16s}
 .dw-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
 .dw-btn:active{transform:scale(.97)}
@@ -184,13 +209,14 @@
 .dw-btn.ghost{background:var(--surface-2);color:var(--ink);box-shadow:none}
 .dw-btn.ghost:hover{background:var(--surface-3)}
 .dw-btn.block{width:100%}
-.dw-btn.sm{height:36px;padding:0 14px;font-size:13.5px;border-radius:11px}
+.dw-btn.sm{position:relative;height:36px;padding:0 14px;font-size:13.5px;border-radius:11px}
+.dw-btn.sm::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
 .dw-btn.icon{width:42px;padding:0}
 
 /* ============================================================ date group + timeline */
 .dw-feed{display:flex;flex-direction:column;gap:6px;padding:0}
 .dw-app[data-device="desktop"] .dw-feed{padding:0}
-.dw-datehead{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;
+.dw-datehead{font:inherit;position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:12px;
   padding:18px 0 12px;background:linear-gradient(var(--bg) 70%,transparent)}
 .dw-app[data-device="mobile"] .dw-datehead{top:env(safe-area-inset-top);background:linear-gradient(var(--bg) 78%,transparent)}
 .dw-datehead .d-day{font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-0.01em}
@@ -216,8 +242,11 @@
 .dw-card .c-body{font-size:15px;color:var(--ink);line-height:1.5;text-wrap:pretty}
 .dw-card .c-acts{position:absolute;top:11px;right:11px;display:flex;gap:5px;opacity:0;transition:.15s}
 .dw-card:hover .c-acts{opacity:1}
-.dw-card .c-act{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+.dw-card:focus-within .c-acts{opacity:1}
+@media (hover:none),(pointer:coarse){.dw-card .c-acts{opacity:1}}
+.dw-card .c-act{position:relative;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
   background:var(--surface-2);color:var(--ink-2)}
+.dw-card .c-act::after{content:'';position:absolute;inset:-7px}
 .dw-card .c-act:hover{background:var(--surface-3);color:var(--ink)}
 .dw-card .c-fav{color:var(--accent-2)}
 
@@ -241,8 +270,9 @@
 /* header actions: search & filter toggle, streak pill */
 .dw-headact{display:flex;align-items:center;gap:8px;flex:none}
 .dw-iconbtn.active{background:var(--accent-soft);color:var(--accent-text);box-shadow:none}
-.dw-streak.btn{padding:0 12px 0 10px;height:36px;font-size:13.5px;transition:.16s}
+.dw-streak.btn{position:relative;padding:0 12px 0 10px;height:36px;font-size:13.5px;transition:.16s}
 .dw-streak.btn:hover{transform:translateY(-1px)}
+.dw-streak.btn::after{content:'';position:absolute;inset:-4px 0}
 .dw-streak.btn .n{color:var(--accent-text)}
 
 /* collapsible block: grid rows 0fr ↔ 1fr, so height animates without measuring.
@@ -268,23 +298,27 @@
   transition:background .15s,border-color .15s,box-shadow .15s}
 .dw-searchfield:focus-within{background:var(--surface);border-color:color-mix(in oklab,var(--accent) 50%,var(--line));
   box-shadow:0 0 0 3px var(--accent-soft)}
+.dw-searchfield:has(input:focus-visible){border-color:var(--accent-text)}
+.dw-searchfield input:focus-visible{outline:none}
 .dw-searchfield>svg{color:var(--muted);flex:none}
-.dw-searchfield input{flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;font-size:16px;
+.dw-searchfield input{flex:1;min-width:0;height:100%;border:none;background:transparent;font-size:16px;
   color:var(--ink);-webkit-appearance:none;appearance:none}
 .dw-searchfield input::-webkit-search-cancel-button{display:none}
 .dw-searchfield input::placeholder{color:var(--muted)}
 .dw-searchfield .dw-kbhint{display:none}
 .dw-searchfield:focus-within .dw-kbhint{display:inline-flex}
-.dw-clearbtn{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
+.dw-clearbtn{position:relative;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;
   background:var(--surface-2);color:var(--ink-2)}
+.dw-clearbtn::after{content:'';position:absolute;inset:-5px}
 .dw-clearbtn:hover{color:var(--ink);background:var(--surface-3)}
 
 .dw-filterrow{display:flex;align-items:center;gap:7px;margin-top:10px;padding:2px 0}
 .dw-app[data-device="desktop"] .dw-filterrow{flex-wrap:wrap}
 .dw-app[data-device="mobile"] .dw-filterrow{overflow-x:auto;scrollbar-width:none}
 .dw-app[data-device="mobile"] .dw-filterrow::-webkit-scrollbar{display:none}
-.dw-filterrow .dw-chip{height:34px;flex:none}
-.dw-app[data-device="mobile"] .dw-filterrow .dw-chip{height:36px}
+.dw-filterrow .dw-chip{height:36px;flex:none}
+.dw-app[data-device="mobile"] .dw-filterrow .dw-chip{height:40px}
+.dw-filterrow .dw-chip.selectable::after{display:none}
 .dw-filterrow .sep{flex:none;width:1px;height:20px;background:var(--line-2);margin:0 2px}
 /* chips follow the panel in, one after another */
 .dw-filterrow>*{opacity:0;transform:translateY(6px);
@@ -301,7 +335,7 @@
   background:var(--accent-soft);color:var(--accent-text)}
 .dw-datechip.set .lbl{padding:0 3px;font-weight:700}
 .dw-datechip.set button{height:100%;display:inline-flex;align-items:center;justify-content:center;color:inherit;border-radius:999px}
-.dw-datechip.set .step{width:28px}
+.dw-datechip.set .step{width:32px}
 .dw-datechip.set .step:disabled{opacity:.35;cursor:not-allowed}
 .dw-datechip.set .x{width:30px}
 .dw-datechip.set button:hover:not(:disabled),.dw-datechip.set .lbl:hover{background:color-mix(in oklab,var(--accent) 12%,transparent)}
@@ -311,7 +345,7 @@
 .dw-dateinput::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:auto;height:auto;cursor:pointer}
 .dw-datechip .lbl:has(.dw-dateinput:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 
-.dw-clear{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:9px;
+.dw-clear{display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:5px 8px;border-radius:9px;
   font-size:12.5px;font-weight:700;color:var(--accent-text)}
 .dw-clear:hover{background:var(--accent-soft)}
 .dw-results{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px;
@@ -321,7 +355,7 @@
 /* keyboard hints: key caps + tooltips, only where there is a keyboard */
 .dw-kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:5px;
   background:var(--surface-2);border:1px solid var(--line-2);border-bottom-width:2px;color:var(--ink-2);
-  font:700 11px/1 ui-monospace,'SF Mono',Menlo,monospace}
+  font:700 12px/1 ui-monospace,'SF Mono',Menlo,monospace}
 .dw-kbhint{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .dw-tipwrap{position:relative;display:inline-flex}
 .dw-tip{position:absolute;top:calc(100% + 8px);right:0;z-index:30;display:flex;align-items:center;gap:8px;
@@ -343,15 +377,15 @@
 .dw-noresults p{font-size:14px;max-width:34ch}
 .dw-card mark{background:color-mix(in oklab,var(--accent) 28%,transparent);color:inherit;border-radius:4px;padding:0 1px}
 .dw-heatcell{display:block;width:100%;padding:0}
-.dw-heatcell:hover{outline:2px solid var(--accent);outline-offset:1px}
+.dw-heatcell:hover{outline:2px solid var(--accent-text);outline-offset:1px}
 
 /* ============================================================ bottom nav (tabbar) */
 .dw-tabbar{flex:none;display:flex;align-items:center;justify-content:space-around;
   background:color-mix(in oklab,var(--surface) 88%,transparent);backdrop-filter:blur(14px);
   border-top:1px solid var(--line);padding:8px 8px calc(10px + env(safe-area-inset-bottom));position:relative;z-index:20}
-.dw-tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 14px;border-radius:14px;
-  color:var(--muted);font-size:10.5px;font-weight:700;transition:.15s;letter-spacing:.01em}
-.dw-tab.active{color:var(--accent)}
+.dw-tab{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:48px;min-width:64px;padding:6px 14px;border-radius:14px;
+  color:var(--muted);font-size:12px;font-weight:700;transition:.15s;letter-spacing:.01em}
+.dw-tab.active{color:var(--accent-text)}
 .dw-tab:active{transform:scale(.92)}
 .dw-tab .badge{position:absolute}
 
@@ -359,14 +393,16 @@
 .dw-navitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
   color:var(--ink-2);font-weight:600;font-size:14.5px;transition:.14s;width:100%;text-align:left}
 .dw-navitem:hover{background:var(--surface-2);color:var(--ink)}
-.dw-navitem.active{background:var(--accent-soft);color:var(--accent)}
-.dw-navitem.active svg{color:var(--accent)}
+.dw-navitem.active{background:var(--accent-soft);color:var(--accent-text)}
+.dw-navitem.active svg{color:var(--accent-text)}
 .dw-navitem .lbl{flex:1}
 .dw-navitem .ct{font-size:12px;color:var(--muted);font-weight:600}
+.dw-navitem .sub{font-size:12px;color:var(--muted)}
+.dw-navitem.active .ct,.dw-navitem.active .sub{color:inherit}
 
 /* ============================================================ FAB */
 .dw-fab{position:absolute;right:18px;bottom:90px;width:58px;height:58px;border-radius:20px;z-index:25;
-  background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  background:var(--accent-strong);color:var(--accent-ink);display:grid;place-items:center;
   box-shadow:0 14px 30px -10px color-mix(in oklab,var(--accent) 85%,transparent);transition:.18s}
 .dw-fab:hover{transform:translateY(-2px) rotate(90deg)}
 .dw-fab:active{transform:scale(.92)}
@@ -383,38 +419,45 @@
 @keyframes dw-up{to{transform:translateY(0)}}
 @keyframes dw-pop{to{transform:scale(1)}}
 .dw-grab{width:38px;height:5px;border-radius:9px;background:var(--line-2);margin:6px auto 8px}
-.dw-sheet h3{font-family:var(--font-display);font-size:20px;font-weight:700;margin:6px 2px 14px}
+.dw-sheet{position:relative}
+.dw-sheet:focus{outline:none}
+.dw-sheet .dw-sheetclose{position:absolute;top:10px;right:10px;box-shadow:none;background:var(--surface-2)}
+.dw-sheet h3{padding-right:48px;font-family:var(--font-display);font-size:20px;font-weight:700;margin:6px 2px 14px}
 
 /* ============================================================ inputs */
 .dw-field{margin-bottom:14px}
 .dw-field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:7px;letter-spacing:.01em}
 .dw-input{width:100%;height:46px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line);
-  padding:0 14px;font-size:15px;outline:none;transition:.15s;color:var(--ink)}
+  padding:0 14px;font-size:16px;transition:.15s;color:var(--ink)}
 textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;resize:vertical}
 .dw-input:focus{border-color:color-mix(in oklab,var(--accent) 50%,var(--line));background:var(--surface)}
 .dw-input::placeholder{color:var(--faint)}
 .dw-inputrow{display:flex;align-items:center;gap:10px;height:46px;border-radius:13px;background:var(--surface-2);
   border:1px solid var(--line);padding:0 14px;transition:.15s}
 .dw-inputrow:focus-within{border-color:color-mix(in oklab,var(--accent) 50%,var(--line));background:var(--surface)}
-.dw-inputrow input{flex:1;border:none;outline:none;background:transparent;font-size:15px;height:100%}
+.dw-inputrow:has(input:focus-visible){outline:2px solid var(--accent-text);outline-offset:2px}
+.dw-inputrow input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;height:100%}
+.dw-inputrow input:focus-visible{outline:none}/* the row draws the ring */
 .dw-inputrow svg{color:var(--muted);flex:none}
 
 /* ============================================================ auth */
 .dw-auth{min-height:100vh;display:flex;flex-direction:column}
 .dw-app[data-device="desktop"] .dw-auth{flex-direction:row}
 .dw-auth-brand{background:linear-gradient(150deg,var(--accent),var(--accent-2));color:#fff;position:relative;overflow:hidden}
-.dw-app[data-device="mobile"] .dw-auth-brand{padding:64px 26px 30px}
+.dw-auth-brand .dw-logo .word b{color:inherit}
+.dw-app[data-device="mobile"] .dw-auth-brand{flex:none;padding:max(64px, calc(env(safe-area-inset-top) + 24px)) 26px 30px}
 .dw-app[data-device="desktop"] .dw-auth-brand{flex:1;padding:54px;display:flex;flex-direction:column;justify-content:space-between}
 .dw-auth-brand .blob{position:absolute;border-radius:50%;background:rgba(255,255,255,.12);filter:blur(2px)}
 .dw-auth-form{background:var(--bg);flex:1;display:flex;flex-direction:column;justify-content:center}
 .dw-app[data-device="mobile"] .dw-auth-form{padding:26px 22px 30px}
 .dw-app[data-device="desktop"] .dw-auth-form{padding:54px;max-width:460px;margin:0 auto;width:100%}
 .dw-segment{display:flex;background:var(--surface-2);border-radius:13px;padding:4px;margin-bottom:22px}
-.dw-segment button{flex:1;height:38px;border-radius:10px;font-weight:700;font-size:14px;color:var(--muted);transition:.15s}
+.dw-segment button{flex:1;height:44px;border-radius:10px;font-weight:700;font-size:14px;color:var(--muted);transition:.15s}
 .dw-segment button.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
 .dw-oauth{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:46px;border-radius:13px;
   background:var(--surface);border:1px solid var(--line-2);font-weight:700;font-size:14.5px;color:var(--ink);transition:.15s}
 .dw-oauth:hover{border-color:var(--faint);background:var(--surface-2)}
+.dw-inline-link{color:var(--accent-text);text-decoration:underline;text-underline-offset:2px}
 .dw-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:12px;font-weight:600}
 .dw-divider::before,.dw-divider::after{content:"";flex:1;height:1px;background:var(--line)}
 
@@ -424,12 +467,14 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-stat .k{font-size:12px;color:var(--muted);font-weight:600;margin-top:5px}
 .dw-statgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .dw-app[data-device="desktop"] .dw-statgrid{grid-template-columns:repeat(4,1fr)}
-.dw-bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:10px}
+.dw-bars{list-style:none;display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:10px}
 .dw-bars .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
 .dw-bars .col{width:100%;max-width:30px;border-radius:8px 8px 4px 4px;background:var(--accent-soft);position:relative;transition:.6s cubic-bezier(.2,.9,.2,1);min-height:5px}
 .dw-bars .bar.peak .col{background:linear-gradient(var(--accent),var(--accent-2))}
-.dw-bars .lab{font-size:10.5px;color:var(--muted);font-weight:700}
-.dw-bars .val{font-size:11px;font-weight:700;color:var(--ink-2)}
+.dw-bars .lab{font-size:12px;color:var(--muted);font-weight:700}
+.dw-bars .lab.today{color:var(--accent-text)}
+.dw-bars .val{font-size:12px;font-weight:700;color:var(--ink-2)}
+.dw-bars .val.zero{color:var(--muted)}
 .dw-heat{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .dw-heat .cell{aspect-ratio:1;border-radius:6px;background:var(--surface-2)}
 .dw-mix{display:flex;flex-direction:column;gap:11px}
@@ -448,8 +493,8 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 
 /* ============================================================ profile */
 .dw-prof-head{display:flex;align-items:center;gap:16px;margin-bottom:8px}
-.dw-avatar{width:64px;height:64px;border-radius:22px;flex:none;display:grid;place-items:center;color:#fff;
-  font-family:var(--font-display);font-weight:700;font-size:26px;background:linear-gradient(150deg,var(--accent),var(--accent-2));
+.dw-avatar{width:64px;height:64px;border-radius:22px;flex:none;display:grid;place-items:center;color:var(--accent-ink);
+  font-family:var(--font-display);font-weight:700;font-size:26px;background:linear-gradient(150deg,var(--accent-strong),var(--accent));
   box-shadow:0 10px 24px -10px color-mix(in oklab,var(--accent) 70%,transparent)}
 .dw-prefcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-sm)}
 .dw-prefrow{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid var(--line)}
@@ -458,12 +503,16 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-prefrow .lbl{flex:1}
 .dw-prefrow .lbl .t{font-weight:600;font-size:14.5px}
 .dw-prefrow .lbl .s{font-size:12px;color:var(--muted)}
-.dw-toggle{width:46px;height:28px;border-radius:999px;background:var(--line-2);position:relative;transition:.2s;flex:none}
-.dw-toggle.on{background:var(--accent)}
-.dw-toggle .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 2px 5px rgba(0,0,0,.2)}
-.dw-toggle.on .knob{left:21px}
+.dw-toggle{width:46px;height:28px;border-radius:999px;background:var(--surface-3);position:relative;transition:.2s;flex:none;
+  box-shadow:inset 0 0 0 2px var(--muted)}
+.dw-toggle::after{content:'';position:absolute;inset:-8px -1px}
+.dw-toggle.on{background:var(--accent-strong);box-shadow:none}
+.dw-toggle:disabled{cursor:not-allowed;opacity:.45}
+.dw-toggle .knob{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:.2s;box-shadow:0 2px 5px rgba(0,0,0,.2)}
+.dw-toggle.on .knob{left:22px;background:#fff}
 .dw-seg3{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:2px}
-.dw-seg3 button{padding:6px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--muted);transition:.14s}
+.dw-seg3 button{position:relative;min-height:36px;padding:6px 12px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--muted);transition:.14s}
+.dw-seg3 button::after{content:'';position:absolute;inset:-4px 0}
 .dw-seg3 button.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
 
 /* ============================================================ onboarding */
@@ -473,12 +522,13 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-onb h2{font-family:var(--font-display);font-size:27px;font-weight:700;letter-spacing:-.02em;max-width:14ch}
 .dw-onb p{color:var(--ink-2);font-size:15px;max-width:30ch}
 .dw-dots{display:flex;gap:7px;justify-content:center}
-.dw-dots .d{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:.2s;padding:0;position:relative}
-.dw-dots .d::before{content:'';position:absolute;inset:-9px -5px}/* bigger tap target */
+.dw-dots{gap:0}
+.dw-dots .d{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:.2s;padding:0;position:relative;margin:0 14px}
+.dw-dots .d::before{content:'';position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}/* 44px tap target */
 .dw-dots .d:hover{background:var(--faint)}
-.dw-dots .d.on{background:var(--accent);width:22px;border-radius:999px}
+.dw-dots .d.on{background:var(--accent-text);width:22px;border-radius:999px}
 .dw-dots .d:focus-visible,.dw-onb .dw-btn:focus-visible,.dw-onb .dw-iconbtn:focus-visible,.dw-linkbtn:focus-visible{
-  outline:2px solid var(--accent);outline-offset:3px}
+  outline:2px solid var(--accent-text);outline-offset:3px}
 .dw-onb .hero{touch-action:pan-y}
 
 /* replayable tour: over the app — full screen on mobile, a centered card on desktop */
@@ -496,7 +546,7 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 }
 
 .dw-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.dw-linkbtn{font-size:13.5px;font-weight:600;color:var(--accent-text,var(--accent));padding:6px 8px;border-radius:8px}
+.dw-linkbtn{font-size:13.5px;font-weight:600;color:var(--accent-text,var(--accent));min-height:44px;padding:6px 8px;border-radius:8px}
 .dw-linkbtn:hover{text-decoration:underline}
 
 /* empty state */
@@ -508,9 +558,9 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 .dw-empty p{color:var(--muted);font-size:14px;max-width:30ch}
 
 /* ============================================================ misc / footer credit */
-.dw-credit{text-align:center;font-size:11.5px;color:var(--muted);padding:26px 16px 18px;line-height:1.7}
-.dw-credit a{color:var(--accent);text-decoration:none;font-weight:600}
-.dw-section-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 2px 11px}
+.dw-credit{text-align:center;font-size:12px;color:var(--muted);padding:26px 16px 18px;line-height:1.7}
+.dw-credit a{color:var(--accent-text);text-decoration:none;font-weight:600}
+.dw-section-label{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 2px 11px}
 
 /* search bar */
 .dw-search{display:flex;align-items:center;gap:10px;height:44px;border-radius:14px;background:var(--surface);
@@ -542,14 +592,71 @@ textarea.dw-input{height:auto;min-height:96px;padding:12px 14px;line-height:1.5;
 
 /* ============================================================ category editor */
 .dw-swatches{display:flex;flex-wrap:wrap;gap:10px}
-.dw-swatch{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;cursor:pointer;
+.dw-swatch{position:relative;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;cursor:pointer;
   border:none;transition:.15s;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.dw-swatch::after{content:'';position:absolute;inset:-5px}
 .dw-swatch:hover{transform:translateY(-1px)}
 .dw-swatch.active{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--ink)}
 .dw-icongrid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
 .dw-iconpick{aspect-ratio:1;border-radius:11px;display:grid;place-items:center;background:var(--surface-2);
   color:var(--ink-2);border:1px solid var(--line);cursor:pointer;transition:.15s}
 .dw-iconpick:hover{border-color:var(--faint)}
-.dw-iconpick.active{background:var(--cat-color,var(--accent));color:#fff;border-color:transparent}
-.dw-field-error{font-size:12px;color:var(--cat-rose);margin-top:6px;font-weight:600}
+.dw-iconpick.active{background:var(--cat-color-strong,var(--accent-strong));color:#fff;border-color:transparent}
+.dw-field-error{font-size:12px;color:var(--danger);margin-top:6px;font-weight:600}
 .dw-danger-note{font-size:13px;color:var(--ink-2);margin:2px 2px 10px;line-height:1.45}
+
+/* ============================================================ status: offline / sync / load error */
+.dw-status{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:55;
+  width:max-content;max-width:calc(100% - 32px);display:flex;align-items:center;gap:9px;padding:6px 6px 6px 14px;min-height:44px;
+  border-radius:999px;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow-sm);
+  font-size:13px;font-weight:600;color:var(--ink-2)}
+.dw-status svg{color:var(--muted);flex:none}
+.dw-status .dw-btn.sm{height:32px}
+.dw-status:not(:has(button)){padding-right:14px}
+.dw-app[data-device="desktop"] .dw-status{bottom:24px;left:calc(236px + (100% - 236px) / 2)}
+/* keep the toast and prompts clear of the status pill */
+.dw-app:has(.dw-status) .dw-toast{bottom:144px}
+.dw-app[data-device="desktop"]:has(.dw-status) .dw-toast{bottom:80px}
+.dw-app:has(.dw-status) .dw-prompt{bottom:calc(140px + env(safe-area-inset-bottom))}
+.dw-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;margin-bottom:16px;
+  background:var(--surface);border:1px solid color-mix(in oklab,var(--danger) 35%,var(--line))}
+.dw-banner .ico{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;
+  background:color-mix(in oklab,var(--danger) 12%,var(--surface));color:var(--danger)}
+.dw-banner .t{font-weight:700;font-size:14px}
+.dw-banner .s{font-size:12.5px;color:var(--ink-2)}
+.dw-btn.danger{background:var(--danger-fill);color:#fff;box-shadow:none}
+.dw-btn.ghost.danger-text,.dw-prefrow.danger-text,.dw-prefrow.danger-text .ico{color:var(--danger)}
+
+/* prompts (install, reminders) and the update bar */
+.dw-prompt{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));max-width:380px;margin-left:auto;z-index:70}
+.dw-app[data-device="desktop"] .dw-prompt{bottom:24px;right:24px}
+.dw-prompt .card{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--line);
+  border-radius:18px;padding:14px 12px 14px 16px;box-shadow:var(--shadow)}
+.dw-prompt .ico{width:38px;height:38px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-text)}
+.dw-prompt .t{font:700 14px/1.35 var(--font-body)}
+.dw-app:has(.dw-prompt--install) .dw-prompt--push{display:none}
+.dw-prompt .s{font-size:12.5px;color:var(--ink-2);margin:2px 0 10px}
+.dw-prompt .acts{display:flex;flex-wrap:wrap;gap:8px}
+.dw-prompt .acts .dw-btn{white-space:nowrap}
+.dw-prompt .dw-iconbtn{width:30px;height:30px;box-shadow:none;background:transparent;flex:none}
+.dw-app.dw-app--bare{position:static;display:contents;min-height:0;height:auto;background:none}
+.dw-updatebar{position:fixed;top:calc(8px + env(safe-area-inset-top));left:16px;right:16px;max-width:440px;margin:0 auto;z-index:90;
+  display:flex;align-items:center;gap:10px;padding:6px 6px 6px 16px;border-radius:16px;
+  background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:13.5px;font-weight:600}
+.dw-updatebar .msg{flex:1;min-width:0}
+.dw-updatebar .dw-btn.sm{height:36px}
+.dw-updatebar .dw-iconbtn{background:transparent;box-shadow:none;color:var(--bg);width:36px;height:36px}
+
+/* ============================================================ reduced motion */
+@media (prefers-reduced-motion:reduce){
+  .dw-scroll{scroll-behavior:auto}
+  .dw-app *,.dw-app *::before,.dw-app *::after{transition-duration:0s!important;transition-delay:0s!important}
+  .dw-scrim{animation:none;opacity:1}
+  .dw-sheet,.dw-app[data-device="desktop"] .dw-sheet{animation:none;transform:none}
+  .dw-toast{animation:none}
+  .dw-confetti,.dw-burst{display:none}
+  .dw-spinner{animation-duration:2.4s}
+  .dw-fab:hover,.dw-card:hover,.dw-btn:hover,.dw-iconbtn:hover,.dw-streak.btn:hover,.dw-swatch:hover{transform:none}
+}
+.dw-spinner{width:32px;height:32px;border:4px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:dw-spin .8s linear infinite}
+@keyframes dw-spin{to{transform:rotate(360deg)}}
