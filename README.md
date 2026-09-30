@@ -12,11 +12,12 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Streaks & nudges** — A streak counter and a contextual nudge banner that encourages you to keep your run alive.
 - **Insights** — Stat cards (streak, this week, total, best day), a last-7-days bar chart, a category-mix breakdown, and a 12-week activity heatmap — computed over your full history.
 - **Onboarding intro** — A 3-step intro carousel shown once to new accounts, whether they sign up with email or Google. Replay it any time from **Profile → Help → Replay intro**, from the "New here? Take the 30-second tour" link on the empty timeline, or by opening the app with `?tour=1` (the param is removed once the tour opens). Navigate with Next/Back, the step dots, ←/→ keys or a swipe; Esc closes it.
-- **Profile** — Edit your name/email, switch theme, manage push reminders and their time, manage categories, replay the intro, and review per-category counts. The footer shows the running version. A weekly digest is listed as "Soon" and is not implemented yet.
+- **Profile** — Edit your display name (the email shown is your sign-in address), switch theme, manage push reminders and their time, manage categories, replay the intro, and review per-category counts. The footer shows the running version. A weekly digest is listed as "Coming soon" and is not implemented yet. "Delete all wins" asks for confirmation first.
 
 ### 🎨 Design & UX
 - **Warm, custom design system** — Hand-built design tokens (`src/styles/dailywins.css`) scoped under `.dw-app`, themed via data attributes. Brand mark is a rising sun + checkmark in a sunrise gradient.
-- **Light / Dark / Auto** — Theme preference with an `Auto` mode that follows your device.
+- **Light / Dark / Auto** — Theme preference with an `Auto` mode that follows your device. Auto is the default until you pick Light or Dark.
+- **Accessible** — Built to WCAG 2.2 AA: labelled controls, a visible focus ring, 44px touch targets, sheets that trap focus and close on Esc, announced toasts, and contrast checked in both themes and every accent.
 - **Responsive shell** — A sidebar layout on desktop and a bottom tab bar + composer on mobile, driven from a single responsive component.
 - **Typography** — Bricolage Grotesque (display) + Hanken Grotesque (body).
 - **Delight** — Confetti on a new win, toasts, and subtle entrance animations (respecting `prefers-reduced-motion`).
@@ -24,7 +25,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 
 ### 📱 Progressive Web App
 - **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop.
-- **Offline-first** — Works fully offline using IndexedDB; changes apply optimistically.
+- **Offline-first** — Works fully offline using IndexedDB; changes apply optimistically. A small status pill says when you're offline and how many changes are waiting to sync, with a Sync now button once you're back.
 - **Background sync** — Pending offline changes sync automatically when you reconnect.
 - **Update prompt** — When a new version is deployed, a banner offers a Reload button (see [Updates and caching](#7-updates-and-caching)).
 - **Push reminders** — Optional daily "log a win" notification at a time you choose, in your own timezone, delivered via OneSignal (see [Push reminders](#5-push-reminders-optional)).
@@ -207,7 +208,7 @@ npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/
 npm run typecheck:ui-check    # typecheck the ui:check fixtures against the database types
 ```
 
-`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet and the intro tour). Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--no-axe` skips the scan.
+`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet, search and filters, the category editor, the reminder and install prompts, the update banner, the intro tour, and logging a win). Screens that scroll also get a `-full.png` covering the whole scroll area. Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--accent=forest` (or `all`) renders another brand accent, `--no-axe` skips the scan.
 
 ## 📁 Project Structure
 
@@ -242,8 +243,8 @@ daily-accomplishments/
 │   │   │   ├── keys.ts            # Keyboard-shortcut helpers
 │   │   │   └── useDevice.ts       # Responsive + theme hooks
 │   │   ├── InstallPrompt.tsx      # PWA install prompt
-│   │   ├── UpdateBanner.tsx       # "New version available" reload banner
-│   │   ├── OfflineIndicator.tsx
+│   │   ├── UpdateBanner.tsx       # "A new version is ready" reload banner
+│   │   ├── OfflineIndicator.tsx   # Offline / pending-sync status pill (mounted in AppShell)
 │   │   └── PageHeader / PageFooter / ThemeToggle.tsx  # Marketing/policy pages
 │   ├── hooks/useTheme.ts
 │   ├── lib/
@@ -267,7 +268,7 @@ daily-accomplishments/
 ├── scripts/
 │   ├── check-build-env.mjs        # Fails the Netlify build if required VITE_* vars are missing
 │   ├── ui-check.mjs               # npm run ui:check: screenshots + axe accessibility scan
-│   └── ui-check/                  # Fake Supabase + fixture scenarios for ui:check
+│   └── ui-check/                  # Fake Supabase, fixture scenarios and a PWA-update stub for ui:check
 └── vite.config.ts                 # Vite + PWA (Workbox) config; injects __APP_VERSION__
 ```
 (Unit tests sit beside the code as `*.test.ts`.)
@@ -326,7 +327,8 @@ profiles (
 ## 🔄 Offline Behavior
 
 - All wins are cached in **IndexedDB**; adds/edits/deletes apply optimistically.
-- When offline, operations are queued and replayed on reconnect via **background sync**.
+- When offline, or when the server rejects a write, the operation is queued and replayed on reconnect via **background sync** (or **Sync now**). The app tells you the change was saved on this device rather than confirming it reached the server, and the status pill counts what's pending.
+- If your wins can't be loaded from the server, the timeline, Insights and Profile say so and offer **Try again**, showing any wins cached on this device meanwhile.
 - Insights and the timeline are computed from your full local history, so the app stays useful with no connection.
 
 ## 🎨 Customization

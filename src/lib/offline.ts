@@ -152,8 +152,9 @@ class OfflineManager {
     return newAccomplishment as Accomplishment;
   }
 
-  // Update accomplishment
-  async updateAccomplishment(id: string, text: string, createdAt?: string, category?: CategoryFields): Promise<void> {
+  // Update accomplishment. Resolves true when the server has it, false when
+  // it was queued for the next sync (offline, or the server call failed).
+  async updateAccomplishment(id: string, text: string, createdAt?: string, category?: CategoryFields): Promise<boolean> {
     // Try to update online first
     if (navigator.onLine) {
       try {
@@ -175,7 +176,7 @@ class OfflineManager {
 
         // Update cached version
         await this.updateCachedAccomplishment(id, text, createdAt, category);
-        return;
+        return true;
       } catch (error) {
         console.log('Failed to update online, storing offline:', error);
       }
@@ -190,10 +191,11 @@ class OfflineManager {
 
     // Update cached version optimistically
     await this.updateCachedAccomplishment(id, text, createdAt, category);
+    return false;
   }
 
-  // Delete accomplishment
-  async deleteAccomplishment(id: string): Promise<void> {
+  // Delete accomplishment. Resolves like updateAccomplishment.
+  async deleteAccomplishment(id: string): Promise<boolean> {
     // Try to delete online first
     if (navigator.onLine) {
       try {
@@ -206,7 +208,7 @@ class OfflineManager {
 
         // Remove from cache
         await this.removeCachedAccomplishment(id);
-        return;
+        return true;
       } catch (error) {
         console.log('Failed to delete online, storing offline:', error);
       }
@@ -221,6 +223,7 @@ class OfflineManager {
 
     // Remove from cache optimistically
     await this.removeCachedAccomplishment(id);
+    return false;
   }
 
   // Sync pending operations

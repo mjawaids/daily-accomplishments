@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useDW } from './useDW';
 import { CatGlyph, Icon } from './icons';
+import { Sheet } from './components';
 import {
   CATEGORY_COLORS,
   CATEGORY_ICONS,
@@ -13,6 +14,39 @@ import {
   validateCategoryName,
 } from '../../lib/categories';
 import type { Category, CategoryColor, CategoryIcon } from '../../lib/categories';
+
+const TITLE_ID = 'dw-cat-title';
+
+const COLOR_NAMES: Record<CategoryColor, string> = {
+  blue: 'Blue',
+  rose: 'Rose',
+  violet: 'Violet',
+  green: 'Green',
+  amber: 'Amber',
+  teal: 'Teal',
+  orange: 'Orange',
+  slate: 'Slate',
+};
+
+/** Spoken names for the icon picker (the keys are code names like heartHand). */
+const ICON_NAMES: Partial<Record<CategoryIcon, string>> = {
+  briefcase: 'Briefcase',
+  heartHand: 'Heart',
+  book: 'Book',
+  activity: 'Pulse',
+  star: 'Star',
+  target: 'Target',
+  flame: 'Flame',
+  spark: 'Sparkle',
+  flag: 'Flag',
+  home: 'Home',
+  user: 'Person',
+  calendar: 'Calendar',
+  chart: 'Chart',
+  clock: 'Clock',
+  mail: 'Mail',
+  image: 'Image',
+};
 
 function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: () => void }) {
   const { categories, entries, catById, addCategory, editCategory, removeCategory } = useDW();
@@ -52,21 +86,22 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
   if (editing && confirmDelete) {
     return (
       <div>
-        <h3>Delete “{editing.name}”?</h3>
+        <h3 id={TITLE_ID}>Delete “{editing.name}”?</h3>
         {winCount > 0 ? (
           <>
-            <p className="dw-danger-note">
+            <p className="dw-danger-note" id="dw-cat-move-label">
               {winCount === 1 ? '1 win is' : `${winCount} wins are`} in this category. Choose where to move{' '}
               {winCount === 1 ? 'it' : 'them'}:
             </p>
             <div className="dw-field">
-              <div className="dw-catpick">
+              <div className="dw-catpick" role="group" aria-labelledby="dw-cat-move-label">
                 {others.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     className={'dw-chip selectable' + (moveTo === c.id ? ' active' : '')}
                     style={catColorVar(c)}
+                    aria-pressed={moveTo === c.id}
                     onClick={() => setMoveTo(c.id)}
                   >
                     <CatGlyph cat={c} size={20} />
@@ -84,8 +119,7 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
             Cancel
           </button>
           <button
-            className="dw-btn block"
-            style={{ background: 'var(--cat-rose)', color: '#fff' }}
+            className="dw-btn block danger"
             onClick={doDelete}
             disabled={busy || !moveTo}
           >
@@ -99,7 +133,7 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
 
   return (
     <div>
-      <h3>{editing ? 'Edit category' : 'New category'}</h3>
+      <h3 id={TITLE_ID}>{editing ? 'Edit category' : 'New category'}</h3>
       <div className="dw-field">
         <label htmlFor="dw-cat-name">Name</label>
         <div className="dw-inputrow">
@@ -110,6 +144,8 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
             maxLength={MAX_NAME_LENGTH}
             placeholder="e.g. Side project"
             autoFocus
+            aria-invalid={touched && !!error}
+            aria-describedby={touched && error ? 'dw-cat-name-error' : undefined}
             onChange={(e) => setName(e.target.value)}
             onBlur={() => setTouched(true)}
             onKeyDown={(e) => {
@@ -117,17 +153,22 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
             }}
           />
         </div>
-        {touched && error && <div className="dw-field-error">{error}</div>}
+        {touched && error && (
+          <div className="dw-field-error" id="dw-cat-name-error">
+            {error}
+          </div>
+        )}
       </div>
       <div className="dw-field">
-        <label>Color</label>
-        <div className="dw-swatches">
+        <label id="dw-cat-color-label">Color</label>
+        <div className="dw-swatches" role="group" aria-labelledby="dw-cat-color-label">
           {CATEGORY_COLORS.map((c) => (
             <button
               key={c}
               type="button"
-              aria-label={c}
-              title={c}
+              aria-label={COLOR_NAMES[c]}
+              aria-pressed={color === c}
+              title={COLOR_NAMES[c]}
               className={'dw-swatch' + (color === c ? ' active' : '')}
               style={{ background: categoryColor({ color: c }) }}
               onClick={() => setColor(c)}
@@ -138,13 +179,14 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
         </div>
       </div>
       <div className="dw-field">
-        <label>Icon</label>
-        <div className="dw-icongrid" style={catColorVar(preview)}>
+        <label id="dw-cat-icon-label">Icon</label>
+        <div className="dw-icongrid" style={catColorVar(preview)} role="group" aria-labelledby="dw-cat-icon-label">
           {CATEGORY_ICONS.map((i) => (
             <button
               key={i}
               type="button"
-              aria-label={i}
+              aria-label={ICON_NAMES[i] ?? i}
+              aria-pressed={icon === i}
               className={'dw-iconpick' + (icon === i ? ' active' : '')}
               onClick={() => setIcon(i)}
             >
@@ -156,8 +198,7 @@ function CategoryForm({ editing, onDone }: { editing: Category | null; onDone: (
       <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
         {editing && (
           <button
-            className="dw-btn ghost"
-            style={{ color: 'var(--cat-rose)' }}
+            className="dw-btn ghost danger-text"
             disabled={busy || others.length === 0}
             title={others.length === 0 ? 'You need at least one category' : undefined}
             onClick={() => setConfirmDelete(true)}
@@ -187,15 +228,8 @@ export function CategorySheet() {
   if (categorySheet.mode === 'edit' && !editing) return null;
   const close = () => setCategorySheet(null);
   return (
-    <div className="dw-scrim" onClick={close}>
-      <div
-        className="dw-sheet"
-        style={{ maxHeight: '92%', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="dw-grab" />
-        <CategoryForm key={editing?.id || 'new'} editing={editing} onDone={close} />
-      </div>
-    </div>
+    <Sheet labelledBy={TITLE_ID} onClose={close} style={{ maxHeight: '92%', overflowY: 'auto' }}>
+      <CategoryForm key={editing?.id || 'new'} editing={editing} onDone={close} />
+    </Sheet>
   );
 }

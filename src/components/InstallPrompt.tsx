@@ -81,49 +81,17 @@ export function InstallPrompt() {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: 16,
-        right: 16,
-        bottom: 'calc(84px + env(safe-area-inset-bottom))',
-        maxWidth: 380,
-        marginLeft: 'auto',
-        zIndex: 70,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 12,
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: 18,
-          padding: '14px 16px',
-          boxShadow: 'var(--shadow)',
-        }}
-      >
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            flex: 'none',
-            borderRadius: 12,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'var(--accent-soft)',
-            color: 'var(--accent)',
-          }}
-        >
+    <section className="dw-prompt dw-prompt--install" aria-labelledby="dw-install-title">
+      <div className="card">
+        <div className="ico">
           <Icon name="device" size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Install DailyWins</div>
-          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '2px 0 10px' }}>
-            Add to your home screen for quick access and offline use.
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <h2 className="t" id="dw-install-title">
+            Install DailyWins
+          </h2>
+          <div className="s">Add it to your home screen for quick access and offline use.</div>
+          <div className="acts">
             <button className="dw-btn sm" onClick={handleInstallClick}>
               <Icon name="download" size={15} sw={2.2} />
               Install
@@ -133,15 +101,10 @@ export function InstallPrompt() {
             </button>
           </div>
         </div>
-        <button
-          className="dw-iconbtn"
-          style={{ width: 30, height: 30, boxShadow: 'none', background: 'transparent' }}
-          onClick={handleDismiss}
-          title="Dismiss"
-        >
+        <button className="dw-iconbtn" onClick={handleDismiss} aria-label="Dismiss install prompt" title="Dismiss">
           <Icon name="x" size={16} />
         </button>
       </div>
-    </div>
+    </section>
   );
 }

@@ -52,7 +52,9 @@ drift to the user rather than silently picking one.
 
 1. Read the relevant part of `dailywins.css` and the component you're touching.
    Reuse existing classes (`dw-btn`, `dw-chip`, `dw-iconbtn`, `dw-card`, sheets,
-   `dw-noresults`) and the `Icon` wrapper (lucide-react) before writing new ones.
+   `dw-noresults`, `dw-banner`, `dw-status`, `dw-prompt`) and components
+   (`Sheet` for any bottom sheet or dialog, `LoadErrorBanner`) and the `Icon`
+   wrapper (inline SVG paths in `icons.tsx`) before writing new ones.
 2. Implement with tokens only: `var(--ink)`, `var(--surface)`, `var(--accent)`
    and so on. No hex, rgb or font names in `.dw-app` components.
 3. Run `npm run ui:check`. Narrow it with `--only=<screens>` (for example
@@ -60,6 +62,9 @@ drift to the user rather than silently picking one.
    It saves screenshots to `ui-shots/` and runs an axe-core WCAG 2.2 AA scan.
    Signed-out screens are named `<screen>-<mobile|desktop>-<light|dark>.png`,
    signed-in ones `<screen>-<scenario>-<mobile|desktop>-<light|dark>.png`.
+   Screens whose content scrolls also get a `-full.png` with the whole scroll
+   area laid out, so check below the fold too. `--accent=<names>` (or `all`)
+   renders the other brand accents, adding `-<accent>` to file names.
 4. **Open the screenshots for the screens you changed** with Read, in both
    widths and both themes, and review them against the checklist below.
 5. Fix, re-run, and repeat until the screenshots look right and axe reports no
@@ -70,7 +75,13 @@ drift to the user rather than silently picking one.
 
 - Screens: `signin`, `signup`, `pricing`, `privacy`, `terms`, `refund`
   (signed out), and `timeline`, `insights`, `profile`, `add` (the add-win
-  sheet) and `tour` (signed in).
+  sheet), `search` (search and filters open, one category picked),
+  `category` (the category editor sheet), `push` (the evening-reminder
+  prompt), `install` (the install prompt), `update` (the new-version banner),
+  `tour` and `log` (logs a win from the composer and shows the result; in the
+  `error` and `offline` scenarios that is a save that didn't reach the server)
+  (signed in). A screen whose state doesn't exist in a scenario (no wins to
+  search in `empty`) is skipped and listed at the end.
 - Signed-in screens run against a fake Supabase inside the browser
   (`scripts/ui-check/fake-supabase.mjs`). No account or secret is needed, and
   the check never contacts a real project: it forces a fake Supabase URL and
@@ -91,15 +102,12 @@ drift to the user rather than silently picking one.
 - The sandbox may not reach Google Fonts, so screenshots can show Georgia or
   system-ui instead of Bricolage and Hanken. Judge layout, color and spacing
   from them, not the typefaces.
-- Known issues as of this skill's creation, which the check will report until
-  they're fixed: icon-only buttons and a few inputs without accessible names
-  (auth, profile, add sheet); white text on the Sunrise accent and on the
-  avatar initials failing contrast; small tour dots (`target-size`); and
-  low-contrast body text on the Tailwind policy pages in dark mode. Beyond
-  axe: in the `error` scenario the timeline shows the new-account empty state
-  instead of an error, and `OfflineIndicator` is not mounted, so the app shows
-  nothing when offline. Don't add to this list. If your change touches one of
-  these, fix it.
+- The check reported no serious or critical issues after the September 2026
+  UI/UX audit. Treat any it reports now as caused by your change. Still open
+  from that audit, deliberately: the Pricing, policy and checkout pages use a
+  separate Tailwind look (blue/purple, Title Case, emoji) that drifts from
+  the brand, and the auth brand panel puts white text on the accent to
+  accent-2 gradient. Both wait on a Claude Design pass.
 
 ## Checklist
 
@@ -125,6 +133,12 @@ drift to the user rather than silently picking one.
   (sunrise, forest, indigo, berry).
 - `--muted` is the lightest color allowed for text. `--faint` is for
   placeholders and borders only.
+- Accent as text (active tabs, numbers, links) uses `--accent-text`, never raw
+  `--accent`. Filled accent surfaces with white text use `--accent-strong`.
+  Category fills behind white text use `--cat-<color>-strong` (set by
+  `catColorVar`). Danger text uses `--danger`, danger fills `--danger-fill`.
+- Don't dim a whole row with `opacity` to show it's unavailable: dim the
+  control and say why in the row's text.
 - Category colors mean "which category", never status. Status carries an icon
   or word too, never color alone.
 
@@ -133,32 +147,48 @@ drift to the user rather than silently picking one.
 - empty (says what will appear and offers the next action, like "Your wins
   start here"),
 - error (plain language, what happened and how to fix it, a retry),
-- offline (the app is offline-first; say what's pending sync, see
-  `src/lib/offline.ts`; `src/components/OfflineIndicator.tsx` exists but is not
-  mounted yet),
-- optimistic updates that roll back visibly if the server rejects them.
+- offline (the app is offline-first: `OfflineIndicator` shows offline status
+  and the pending-sync count; see `src/lib/offline.ts`),
+- writes the server didn't take: the app queues them on the device, so say
+  that ("Saved on this device and will sync later") instead of confirming
+  success, and show an error if even the device queue fails.
+- Feedback reaches screen readers: toasts go through `Toast` (a live region);
+  errors use `role="alert"`.
 
 **Interaction and accessibility**
 - Touch targets at least 44×44px (pad around smaller visuals).
 - Every control is reachable and usable by keyboard with a visible
-  `:focus-visible` style. Esc closes sheets and dialogs, and focus returns to the
-  control that opened them.
+  `:focus-visible` style (the shared ring in `dailywins.css`; don't set
+  `outline:none` without drawing a replacement). Esc closes sheets and dialogs,
+  and focus returns to the control that opened them: use `Sheet`, which does
+  this and traps Tab. A sheet opened from inside a screen still covers the
+  whole app (it portals into `.dw-app`).
+- Inputs have a real `<label>` (or `aria-label`), and sign-in fields have
+  `autocomplete`. Toggles are `role="switch"` with `aria-checked`; selectable
+  chips and segments have `aria-pressed`.
+- A long grid of similar buttons (the heatmap) is one Tab stop with arrow-key
+  movement, not dozens of stops.
 - Icon-only buttons need an `aria-label` (a `title` alone isn't enough).
 - Hover-only affordances need a touch or focus equivalent. The existing
   `(hover:none)` / `(pointer:coarse)` rules hide hover UI on touch.
-- Use real `<button>`, `<a>`, `<label>` and headings in order. No clickable divs.
+- Use real `<button>`, `<a>`, `<label>` and headings in order. No clickable
+  divs, except as a mouse shortcut next to a real, named button that does the
+  same thing (win cards and their Edit button). Screens have `<main>` and
+  `<nav>` landmarks and `h2` section headings under the `h1`.
 
 **Motion**
 - UI transitions 0.15–0.2s. Confetti on a new win is the signature moment.
   Don't add competing flourishes.
 - Every animation or transition you add also goes under
   `@media (prefers-reduced-motion: reduce)`, following the pattern already in
-  `dailywins.css`.
+  `dailywins.css` (its reduced-motion block turns off transitions, sheet and
+  toast animations and confetti).
 
 **Copy**
 - Sentence case, "you/your", short and concrete, warm without hype, no emoji.
   Buttons say what happens ("Log a win", "Save"). Destructive actions state the
-  consequence ("This can't be undone.").
+  consequence ("This can't be undone.") and ask before deleting more than one
+  thing. The app never says "we" or "I".
 
 **Performance**
 - Don't add a UI library for something a few lines of CSS can do. Keep images

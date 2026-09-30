@@ -1,5 +1,5 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { RefreshCw, X } from 'lucide-react';
+import { Icon } from './dw/icons';
 
 /* Surfaces a waiting service worker.
 
@@ -20,23 +20,20 @@ export function UpdateBanner() {
 
   if (!needRefresh) return null;
 
+  // Rendered above the routes, outside any .dw-app, so it carries its own
+  // .dw-app scope (tokens, theme) with the display reset that keeps it from
+  // taking the full-screen app layout.
+  const dark = document.documentElement.classList.contains('dark');
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] px-4 w-full max-w-md">
-      <div className="flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border bg-white border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
-        <RefreshCw className="w-4 h-4 shrink-0" />
-        <span className="text-sm font-medium flex-1">New version available</span>
-        <button
-          onClick={() => updateServiceWorker(true)}
-          className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-all"
-        >
+    <div className="dw-app dw-app--bare" data-theme={dark ? 'dark' : 'light'} data-accent="sunrise">
+      <div className="dw-updatebar" role="status">
+        <Icon name="sync" size={17} />
+        <span className="msg">A new version is ready</span>
+        <button className="dw-btn sm" onClick={() => updateServiceWorker(true)}>
           Reload
         </button>
-        <button
-          onClick={() => setNeedRefresh(false)}
-          aria-label="Dismiss"
-          className="p-1 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all"
-        >
-          <X className="w-4 h-4" />
+        <button className="dw-iconbtn" aria-label="Dismiss update message" onClick={() => setNeedRefresh(false)}>
+          <Icon name="x" size={16} />
         </button>
       </div>
     </div>

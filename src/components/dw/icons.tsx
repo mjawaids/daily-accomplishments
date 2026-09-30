@@ -9,7 +9,7 @@ export type IconName =
   | 'edit' | 'trash' | 'x' | 'chevL' | 'chevR' | 'chevD' | 'gear' | 'mail' | 'lock'
   | 'eye' | 'sun' | 'moon' | 'device' | 'bell' | 'flame' | 'spark' | 'more' | 'filter'
   | 'clock' | 'logout' | 'chevUp' | 'arrowUp' | 'target' | 'heartHand' | 'book'
-  | 'activity' | 'briefcase' | 'chart' | 'sync' | 'download' | 'image' | 'flag';
+  | 'activity' | 'briefcase' | 'chart' | 'sync' | 'download' | 'image' | 'flag' | 'cloudOff' | 'alert' | 'eyeOff';
 
 const PATHS: Record<string, string> = {
   home: 'M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5',
@@ -51,6 +51,9 @@ const PATHS: Record<string, string> = {
   download: 'M12 4v10M8 11l4 4 4-4M5 19h14',
   image: 'M4 4h16v16H4zM4 15l4-4 5 5M14 13l2-2 4 4',
   flag: 'M5 21V4M5 4c3-1.5 6 1.5 9 0v8c-3 1.5-6-1.5-9 0',
+  cloudOff: 'M3 3l18 18M8.5 6.2A6 6 0 0 1 17.7 10H18a4 4 0 0 1 2.9 6.8M16 19H7a5 5 0 0 1-2.3-9.4',
+  eyeOff: 'M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3 3.9M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  alert: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 8v5M12 16h.01',
 };
 
 const GEAR_A = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z';
@@ -109,10 +112,11 @@ export function Logo({ size = 30, wordmark = true, fontSize = 21, color }: LogoP
     </div>
   );
   if (!wordmark) return mark;
+  // One image named "DailyWins", so the split-color wordmark reads as a logo.
   return (
-    <div className="dw-logo">
+    <div className="dw-logo" role="img" aria-label="DailyWins">
       {mark}
-      <div className="word" style={{ fontSize, color }}>
+      <div className="word" aria-hidden="true" style={{ fontSize, color }}>
         Daily<b>Wins</b>
       </div>
     </div>

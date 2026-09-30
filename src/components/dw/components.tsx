@@ -1,6 +1,7 @@
 /* DailyWins — shared UI components (entry card, composer, form, chips).
    Ported from the Claude Design handoff (app/components.jsx); favorites removed. */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDW } from './useDW';
 import { Icon, CatGlyph } from './icons';
 import { highlightParts, isoLocal, timeLabel } from '../../lib/winsData';
@@ -14,6 +15,7 @@ export function Kbd({ children }: { children: React.ReactNode }) {
   return <kbd className="dw-kbd">{children}</kbd>;
 }
 
+/** Initials or photo. Decorative: the control around it carries the name. */
 export function Avatar({ size = 34 }: { size?: number }) {
   const { prefs, avatarUrl } = useDW();
   const initials = prefs.name
@@ -22,7 +24,7 @@ export function Avatar({ size = 34 }: { size?: number }) {
     .slice(0, 2)
     .join('');
   return (
-    <div className="av" style={{ width: size, height: size, fontSize: size * 0.4, overflow: 'hidden' }}>
+    <div className="av" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4, overflow: 'hidden' }}>
       {avatarUrl ? (
         <img src={avatarUrl} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       ) : (
@@ -46,18 +48,21 @@ interface CatPickerProps {
   value: string;
   onChange: (id: string) => void;
   small?: boolean;
+  /** Id of the element that labels the group. */
+  labelledBy?: string;
 }
 
-export function CatPicker({ value, onChange, small }: CatPickerProps) {
+export function CatPicker({ value, onChange, small, labelledBy }: CatPickerProps) {
   const { categories } = useDW();
   return (
-    <div className="dw-catpick">
+    <div className="dw-catpick" role="group" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : 'Category'}>
       {categories.map((c) => (
         <button
           key={c.id}
           type="button"
           className={'dw-chip selectable' + (small ? ' sm' : '') + (value === c.id ? ' active' : '')}
           style={catColorVar(c)}
+          aria-pressed={value === c.id}
           onClick={() => onChange(c.id)}
         >
           <CatGlyph cat={c} size={small ? 17 : 20} />
@@ -98,6 +103,24 @@ interface EntryCardProps {
 
 export function EntryCard({ entry, style, highlight }: EntryCardProps) {
   const { startEdit } = useDW();
+  // The whole card is a mouse/touch shortcut; the Edit button is the real,
+  // named control for keyboard and screen-reader users.
+  const editLabel = `Edit win: ${entry.text.length > 60 ? entry.text.slice(0, 57) + '…' : entry.text}`;
+  const editButton = (
+    <div className="c-acts">
+      <button
+        type="button"
+        className="c-act"
+        aria-label={editLabel}
+        onClick={(e) => {
+          e.stopPropagation();
+          startEdit(entry);
+        }}
+      >
+        <Icon name="edit" size={15} />
+      </button>
+    </div>
+  );
 
   if (style === 'compact') {
     return (
@@ -112,6 +135,7 @@ export function EntryCard({ entry, style, highlight }: EntryCardProps) {
             <Highlighted text={entry.text} terms={highlight} />
           </div>
         </div>
+        {editButton}
       </div>
     );
   }
@@ -125,18 +149,7 @@ export function EntryCard({ entry, style, highlight }: EntryCardProps) {
       <div className="c-body">
         <Highlighted text={entry.text} terms={highlight} />
       </div>
-      <div className="c-acts">
-        <button
-          className="c-act"
-          title="Edit"
-          onClick={(e) => {
-            e.stopPropagation();
-            startEdit(entry);
-          }}
-        >
-          <Icon name="edit" size={15} />
-        </button>
-      </div>
+      {editButton}
     </div>
   );
 }
@@ -144,12 +157,12 @@ export function EntryCard({ entry, style, highlight }: EntryCardProps) {
 export function DateHead({ group }: { group: DayGroup }) {
   const rel = relativeDay(group.ts);
   return (
-    <div className="dw-datehead">
+    <h2 className="dw-datehead">
       <span className="d-day">{rel || dayLabel(group.ts)}</span>
       {rel && <span className="d-rel">{shortDay(group.ts)}</span>}
       <span className="d-count">{group.entries.length + (group.entries.length === 1 ? ' win' : ' wins')}</span>
-      <span className="line" />
-    </div>
+      <span className="line" aria-hidden="true" />
+    </h2>
   );
 }
 
@@ -190,6 +203,7 @@ export function QuickComposer() {
           value={text}
           rows={1}
           placeholder="What did you get done today?"
+          aria-label="What did you get done today?"
           onChange={(e) => setText(e.target.value)}
           onFocus={() => setFocused(true)}
           onKeyDown={onKey}
@@ -203,6 +217,7 @@ export function QuickComposer() {
             className="dw-iconbtn"
             style={{ width: 36, height: 36, borderRadius: 11 }}
             title="More options (date, etc.)"
+            aria-label="More options (date, etc.)"
             onClick={() => openAdd()}
           >
             <Icon name="calendar" size={18} />
@@ -227,9 +242,10 @@ export function QuickComposer() {
 }
 
 // ---- full entry form (used in sheet + fullscreen + edit) ----
-export function EntryForm({ onDone }: { onDone: () => void }) {
+export function EntryForm({ onDone, titleId }: { onDone: () => void; titleId?: string }) {
   const { editing, addDay, addWin, updateWin, deleteWin } = useDW();
   const isEdit = !!editing;
+  const ids = useId();
   const [text, setText] = useState(editing ? editing.text : '');
   const [cat, setCat] = useCatSelection(editing ? editing.categoryId : null);
   const [dateStr, setDateStr] = useState(editing ? isoLocal(new Date(editing.ts)) : addDay || isoLocal(new Date()));
@@ -260,10 +276,11 @@ export function EntryForm({ onDone }: { onDone: () => void }) {
 
   return (
     <div>
-      <h3>{isEdit ? 'Edit win' : 'Log a win'}</h3>
+      <h3 id={titleId ?? `${ids}-title`}>{isEdit ? 'Edit win' : 'Log a win'}</h3>
       <div className="dw-field">
-        <label>What did you accomplish?</label>
+        <label htmlFor={`${ids}-text`}>What did you accomplish?</label>
         <textarea
+          id={`${ids}-text`}
           ref={taRef}
           className="dw-input"
           value={text}
@@ -277,22 +294,30 @@ export function EntryForm({ onDone }: { onDone: () => void }) {
         />
       </div>
       <div className="dw-field">
-        <label>Category</label>
-        <CatPicker value={cat} onChange={setCat} />
+        <label id={`${ids}-cat`}>Category</label>
+        <CatPicker value={cat} onChange={setCat} labelledBy={`${ids}-cat`} />
       </div>
       <div className="dw-field">
-        <label>Date</label>
+        <label htmlFor={`${ids}-date`}>Date</label>
         <div className="dw-inputrow">
           <Icon name="calendar" size={18} />
-          <input type="date" value={dateStr} max={isoLocal(new Date())} onChange={(e) => setDateStr(e.target.value)} />
+          <input
+            id={`${ids}-date`}
+            type="date"
+            value={dateStr}
+            max={isoLocal(new Date())}
+            aria-describedby={`${ids}-date-hint`}
+            onChange={(e) => setDateStr(e.target.value)}
+          />
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Back-date to log a win you missed.</div>
+        <div id={`${ids}-date-hint`} style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+          Back-date to log a win you missed.
+        </div>
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
         {isEdit && editing && (
           <button
-            className="dw-btn ghost"
-            style={{ color: 'var(--cat-personal)' }}
+            className="dw-btn ghost danger-text"
             onClick={() => {
               deleteWin(editing.id);
               onDone();
@@ -307,6 +332,113 @@ export function EntryForm({ onDone }: { onDone: () => void }) {
           {isEdit ? 'Save changes' : 'Log win'}
         </button>
       </div>
+    </div>
+  );
+}
+
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+interface SheetProps {
+  /** Id of the heading that names the dialog. */
+  labelledBy: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}
+
+/** Bottom sheet (a centered card on desktop) as a modal dialog: Esc and the
+    close button dismiss it, Tab stays inside, and focus goes back to whatever
+    opened it. */
+export function Sheet({ labelledBy, onClose, children, style }: SheetProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  // Captured during the first render, before a child's autofocus moves focus.
+  const [returnTo] = useState(() => (typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null));
+
+  useEffect(() => {
+    const el = ref.current;
+    // Let an autofocused field keep focus; otherwise start on the dialog.
+    if (el && !el.contains(document.activeElement)) el.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (!el) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeRef.current();
+      } else if (e.key === 'Tab') {
+        const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || active === el || !el.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !el.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (returnTo && returnTo !== document.body && document.contains(returnTo)) returnTo.focus();
+    };
+  }, [returnTo]);
+
+  const sheet = (
+    <div className="dw-scrim" onClick={onClose}>
+      <div
+        ref={ref}
+        className="dw-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        style={style}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dw-grab" aria-hidden="true" />
+        <button type="button" className="dw-iconbtn dw-sheetclose" aria-label="Close" onClick={onClose}>
+          <Icon name="x" size={18} />
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+  // Always cover the whole app, even when opened from inside a scrolling screen.
+  const host = typeof document !== 'undefined' ? document.querySelector('.dw-app') : null;
+  return host ? createPortal(sheet, host) : sheet;
+}
+
+// ---- load error: the wins couldn't be fetched from the server ----
+export function LoadErrorBanner() {
+  const { loadError, retryLoad, entries } = useDW();
+  const [retrying, setRetrying] = useState(false);
+  if (!loadError) return null;
+  const retry = async () => {
+    setRetrying(true);
+    await Promise.resolve(retryLoad());
+    setRetrying(false);
+  };
+  return (
+    <div className="dw-banner" role="alert">
+      <div className="ico">
+        <Icon name="alert" size={20} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="t">Couldn't load your wins</div>
+        <div className="s">
+          {entries.length
+            ? 'Showing the wins saved on this device. Check your connection and try again.'
+            : 'Your wins are safe. Check your connection and try again.'}
+        </div>
+      </div>
+      <button className="dw-btn sm ghost" onClick={retry} disabled={retrying}>
+        {retrying ? 'Trying…' : 'Try again'}
+      </button>
     </div>
   );
 }
