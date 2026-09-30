@@ -682,7 +682,7 @@ export function Insights({ device }: { device: Device }) {
           onKeyDown={onHeatKey}
           style={{
             display: 'grid',
-            gridTemplateColumns: device === 'desktop' ? 'repeat(12, minmax(0, 36px))' : 'repeat(12, 1fr)',
+            gridTemplateColumns: 'repeat(12, 1fr)',
             gap: 4,
             gridAutoFlow: 'column',
             gridTemplateRows: 'repeat(7,1fr)',
