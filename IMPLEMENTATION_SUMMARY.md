@@ -1,5 +1,7 @@
 # Subscription Flow Implementation Summary
 
+> Historical notes on how the Paddle subscription flow was built. For current setup, see [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md); for deployment, see [DEPLOYMENT.md](DEPLOYMENT.md). The app UI has since moved from `AccomplishmentApp.tsx` to `src/components/dw/` and `src/App.tsx`, and checkout is now triggered from `src/App.tsx`.
+
 ## What Changed
 
 ### 1. **Frontend Flow** — Auth Before Checkout + Redirect Back
@@ -16,9 +18,9 @@
 - `src/App.tsx`
   - Added `shouldOpenCheckout` state
   - Added `useEffect` to detect `?checkout=pro` in URL on auth success
-  - Pass `shouldOpenCheckout` and callback to `AccomplishmentApp`
+  - Opens the Paddle checkout itself once the user is signed in
 
-- `src/components/AccomplishmentApp.tsx`
+- `src/components/AccomplishmentApp.tsx` *(since removed; checkout trigger now in `src/App.tsx`)*
   - Accept `shouldOpenCheckout` and `onCheckoutComplete` props
   - Added `useEffect` to trigger checkout when `shouldOpenCheckout = true`
   - Changed subscription status source from user metadata → profiles table (database)
@@ -104,7 +106,7 @@ Check Auth
 ├─ Not signed in → Redirect to /?auth=signin&checkout=pro
 │  └─ User signs in
 │     └─ handleAuthSuccess() sets shouldOpenCheckout = true
-│        └─ AccomplishmentApp useEffect triggers openCheckout()
+│        └─ App.tsx useEffect triggers openCheckout()
 │
 └─ Signed in → Open Paddle overlay with:
    - customer.email
@@ -132,7 +134,7 @@ Check Auth
       ├─ Query profiles table
       └─ Show success message if subscription_plan = 'pro'
          ↓
-         Pro Badge Appears in App
+         profiles row now says pro (no Pro badge in the UI yet)
 ```
 
 ---
@@ -190,7 +192,7 @@ Modified:
   src/pages/Pricing.tsx                 +7 lines (auth redirect with checkout intent)
   src/pages/CheckoutSuccess.tsx         ~50 lines rewritten (server verification)
   src/App.tsx                           +15 lines (checkout param handling)
-  src/components/AccomplishmentApp.tsx  +20 lines (checkout trigger, profiles table read)
+  src/components/AccomplishmentApp.tsx  (since removed)
   .env.example                          +6 lines (webhook secrets)
 
 Added:

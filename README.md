@@ -5,12 +5,13 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 ## ✨ Features
 
 ### 🎯 Core
-- **Log your wins** — Capture what you got done in your own words, across four categories: Work, Personal, Learning, and Health.
+- **Log your wins** — Capture what you got done in your own words, in categories you control. Every account starts with Work, Personal, Learning and Health, and you can add, rename, recolor, re-icon or delete them (up to 20) from Profile.
 - **Timeline** — A day-grouped feed of your wins on a colored timeline rail, with a sticky "Today / Yesterday / weekday" date header and "Load older" paging.
-- **Quick composer** — An inline composer on the timeline; a full sheet (with category picker and **back-dating**) for editing or logging a missed win.
+- **Search & filter** — Search your wins by text or category name (accent-insensitive), filter by one or more categories, and jump to a specific date. Press `/` on the Timeline to open it.
+- **Quick composer** — An inline composer on the timeline (`Ctrl/⌘ + Enter` to save); a full sheet (with category picker and **back-dating**) for editing or logging a missed win.
 - **Streaks & nudges** — A streak counter and a contextual nudge banner that encourages you to keep your run alive.
 - **Insights** — Stat cards (streak, this week, total, best day), a last-7-days bar chart, a category-mix breakdown, and a 12-week activity heatmap — computed over your full history.
-- **Profile** — Edit your name/email, switch theme, toggle notification preferences, and review per-category counts.
+- **Profile** — Edit your name/email, switch theme, manage push reminders and their time, manage categories, and review per-category counts. The footer shows the running version. A weekly digest is listed as "Soon" and is not implemented yet.
 
 ### 🎨 Design & UX
 - **Warm, custom design system** — Hand-built design tokens (`src/styles/dailywins.css`) scoped under `.dw-app`, themed via data attributes. Brand mark is a rising sun + checkmark in a sunrise gradient.
@@ -23,6 +24,8 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop.
 - **Offline-first** — Works fully offline using IndexedDB; changes apply optimistically.
 - **Background sync** — Pending offline changes sync automatically when you reconnect.
+- **Update prompt** — When a new version is deployed, a banner offers a Reload button (see [Updates and caching](#7-updates-and-caching)).
+- **Push reminders** — Optional daily "log a win" notification at a time you choose, in your own timezone, delivered via OneSignal (see [Push reminders](#5-push-reminders-optional)).
 
 ### 🔐 Authentication & Data
 - **Email/password + Google** — Supabase Auth with email/password and **Continue with Google** (OAuth). Same-email accounts are linked automatically by Supabase.
@@ -32,7 +35,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 
 ### 📈 Analytics & Billing
 - **Google Analytics** (optional) — Page views, auth events, win add/edit/delete, connectivity, and the PWA install funnel.
-- **Pro plan via Paddle** (optional) — A pricing page and Paddle checkout flow, with subscription state stored in a `profiles` table and a Netlify webhook function.
+- **Pro plan via Paddle** (optional) — A `/pricing` page (the Pro plan is still marked "Coming Soon"), a Paddle checkout flow, and a Netlify webhook function that records subscription state in a `profiles` table. See [WEBHOOK_SETUP.md](WEBHOOK_SETUP.md).
 
 ## 🏗️ Tech Stack
 
@@ -41,13 +44,16 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Supabase** — Auth (email/password + Google OAuth) and PostgreSQL with Row Level Security
 - **IndexedDB** + **Service Worker** — offline storage, caching, and background sync
 - **react-router-dom** — marketing/policy routes
-- **Paddle** + **Netlify Functions** — subscriptions (optional)
+- **Paddle** + **Netlify Functions** — subscriptions (optional); a scheduled Netlify Function also sends push reminders
+- **OneSignal** — web push (optional)
+- **vite-plugin-pwa** (Workbox) — service worker generation
+- **Vitest** — unit tests
 - **Google Analytics 4** — product analytics (optional)
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 22 and npm (pinned in `.nvmrc`)
 - A free [Supabase](https://supabase.com) project
 
 ### 1. Install
@@ -81,7 +87,7 @@ Node 22 is pinned in `.nvmrc` — `@supabase/supabase-js` declares `engines: nod
 > Server-side secrets (no `VITE_` prefix) must be set in your host's dashboard, never in client code.
 
 ### 3. Database
-Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments`, `profiles`, `user_settings` and `notification_log` tables with RLS policies and triggers.
+Apply the SQL in `supabase/migrations/` to your project (via the Supabase SQL editor or CLI). This creates the `accomplishments`, `categories`, `profiles`, `user_settings` and `notification_log` tables, plus the RLS policies, triggers and RPC functions around them. In production you never apply these by hand: the deploy workflow does it (see [DEPLOYMENT.md](DEPLOYMENT.md)).
 
 ### 4. Enable Google sign-in (optional)
 1. Create an OAuth client in Google Cloud Console (Web application) with redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`.
@@ -193,15 +199,21 @@ npm run dev      # start the dev server (http://localhost:5173)
 npm run build    # production build
 npm run preview  # preview the production build
 npm run lint     # run ESLint
+npm test         # run unit tests (Vitest)
+npm run typecheck:functions   # typecheck the Netlify functions
 ```
 
 ## 📁 Project Structure
 
 ```
 daily-accomplishments/
+├── .github/workflows/
+│   ├── ci.yml                     # PR checks: lint, tests, typecheck, build, migration dry-run
+│   └── deploy.yml                 # main: migrate, deploy to Netlify, tag + release
 ├── public/
 │   ├── manifest.json              # PWA manifest
-│   ├── sw.js                      # Service worker (cache + background sync)
+│   ├── sw-legacy-cleanup.js       # Deletes pre-Workbox caches (imported by the generated SW)
+│   ├── onesignal/                 # OneSignal service worker
 │   ├── favicon.svg / .ico         # Brand favicons (all devices)
 │   ├── favicon-16x16/32x32.png
 │   ├── apple-touch-icon.png       # iOS home-screen icon
@@ -211,30 +223,47 @@ daily-accomplishments/
 │   │   ├── dw/                    # DailyWins app UI
 │   │   │   ├── AppShell.tsx       # Responsive shell (sidebar / tab bar / FAB)
 │   │   │   ├── WinsProvider.tsx   # State, Supabase + offline wiring, toast/confetti
+│   │   │   ├── useDW.ts           # Hook for the WinsProvider context
 │   │   │   ├── components.tsx     # Entry card, composer, form, chips, avatar
-│   │   │   ├── screens.tsx        # Timeline + Insights
+│   │   │   ├── screens.tsx        # Timeline (search/filter) + Insights
 │   │   │   ├── screens2.tsx       # Profile + Empty
+│   │   │   ├── CategorySheet.tsx  # Add / edit / delete categories
+│   │   │   ├── PushPrompt.tsx     # One-time push reminder opt-in
 │   │   │   ├── Auth.tsx           # Email/password + Google auth
 │   │   │   ├── Onboarding.tsx     # 3-step intro (after signup)
 │   │   │   ├── icons.tsx          # Icon set + brand mark + category glyphs
+│   │   │   ├── keys.ts            # Keyboard-shortcut helpers
 │   │   │   └── useDevice.ts       # Responsive + theme hooks
 │   │   ├── InstallPrompt.tsx      # PWA install prompt
-│   │   └── OfflineIndicator.tsx
+│   │   ├── UpdateBanner.tsx       # "New version available" reload banner
+│   │   ├── OfflineIndicator.tsx
+│   │   └── PageHeader / PageFooter / ThemeToggle.tsx  # Marketing/policy pages
+│   ├── hooks/useTheme.ts
 │   ├── lib/
 │   │   ├── supabase.ts            # Supabase client + types
 │   │   ├── offline.ts             # IndexedDB offline manager + sync
-│   │   ├── winsData.ts            # Date/stat helpers (streak, charts, grouping)
+│   │   ├── winsData.ts            # Date/stat/filter helpers (streak, charts, grouping, search)
+│   │   ├── categories.ts          # User categories: colors, icons, CRUD, defaults
+│   │   ├── userSettings.ts        # Notification preferences + timezone
+│   │   ├── onesignal.ts           # OneSignal web push wrapper
 │   │   ├── analytics.ts           # Google Analytics helpers
 │   │   └── paddle.ts              # Paddle checkout (optional)
-│   ├── pages/                     # Pricing + policy routes
+│   ├── pages/                     # Pricing, checkout success, policy routes
 │   ├── styles/dailywins.css       # Design tokens + component styles
 │   ├── App.tsx                    # Routing + auth/onboarding flow
 │   └── main.tsx                   # Entry point
-├── supabase/migrations/           # Database schema
-└── netlify/functions/             # Paddle webhook (optional)
+├── supabase/migrations/           # Database schema (applied by the deploy workflow)
+├── netlify/functions/
+│   ├── evening-reminder.ts        # Scheduled (every 15 min) push reminder sender
+│   └── paddle-webhook.ts          # Paddle webhook (optional)
+├── scripts/check-build-env.mjs    # Fails the Netlify build if required VITE_* vars are missing
+└── vite.config.ts                 # Vite + PWA (Workbox) config; injects __APP_VERSION__
 ```
+(Unit tests sit beside the code as `*.test.ts`.)
 
 ## 🗄️ Database Schema
+
+Simplified; the migrations in `supabase/migrations/` are the source of truth.
 
 ```sql
 -- Your wins
@@ -242,10 +271,34 @@ accomplishments (
   id uuid PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id),
   text text NOT NULL,
-  category text CHECK (category IN ('work','personal','learning','health')),
+  category_id uuid NOT NULL REFERENCES categories(id),
+  category text,              -- legacy text key (work|personal|learning|health), kept in sync by a trigger
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 )
+
+-- User-managed categories (four defaults seeded per user; max 20 per user)
+categories (
+  id uuid PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id),
+  name text, color text, icon text, position int,
+  legacy_key text             -- maps defaults to the old text values
+)
+
+-- Notification preferences (created lazily on first load)
+user_settings (
+  user_id uuid PRIMARY KEY REFERENCES auth.users(id),
+  push_alias uuid,            -- opaque OneSignal external ID, never client-writable
+  push_enabled boolean,
+  evening_reminder_enabled boolean,
+  reminder_local_time time,   -- quarter hours only
+  timezone text,
+  weekly_digest_enabled boolean,
+  push_unreachable_since timestamptz
+)
+
+-- Reminder send ledger (server-only; RLS with no policies)
+notification_log (...)
 
 -- Subscription state (auto-created on signup)
 profiles (
@@ -257,7 +310,7 @@ profiles (
   ...
 )
 ```
-Both tables enforce Row Level Security so users only ever see their own rows.
+`accomplishments`, `categories`, `user_settings` and `profiles` enforce Row Level Security so users only ever see their own rows. `notification_log` is reachable only through the service role. Reminder scheduling and category deletion go through Postgres functions (`claim_due_evening_reminders`, `delete_category`, and others).
 
 ## 🔄 Offline Behavior
 
@@ -268,21 +321,17 @@ Both tables enforce Row Level Security so users only ever see their own rows.
 ## 🎨 Customization
 
 - **Theme & tokens** — Edit `src/styles/dailywins.css`. Accent palettes and category colors are defined as CSS custom properties (category accents use OKLCH).
-- **Categories** — Defined in `src/lib/winsData.ts` (`CATS`) with matching glyphs in `src/components/dw/icons.tsx`; the database `category` check constraint must be updated to add new ones.
+- **Categories** — Users manage their own in the app (Profile → Categories). The available colors and icons, the per-user limit and the default set live in `src/lib/categories.ts`; the color/icon lists must match the CHECK constraints in `supabase/migrations/20260929120000_user_categories.sql`, and the glyphs are in `src/components/dw/icons.tsx`.
 
 ## 🚀 Deployment
 
-Deploys cleanly to **Netlify** (`netlify.toml` builds `dist/` and serves the SPA). Set the environment variables in your host's dashboard, including any optional GA/Paddle keys and server-side secrets.
-
-```bash
-npm run build   # outputs dist/
-```
+Production is deployed only by GitHub Actions from `main`: migrations are applied with the Supabase CLI, then the site and functions are deployed to Netlify. Pull requests run lint, tests, a function typecheck, a build and a read-only migration dry-run. Versions are calendar-based (`YYYY.MM.DD.N`), generated on deploy and never edited by hand. Full details, required secrets and rules for schema changes are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 🤝 Contributing
 
 1. Fork and branch: `git checkout -b feature/your-feature`
-2. Commit your changes
-3. Open a pull request
+2. Commit your changes, updating the README and other docs to match (see `CLAUDE.md`)
+3. Open a pull request against `main`; CI must pass
 
 ## 📄 License
 
