@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck:functions": "tsc --noEmit -p tsconfig.netlify.json",
     "test": "vitest run",
-    "ui:check": "node scripts/ui-check.mjs"
+    "ui:check": "node scripts/ui-check.mjs",
+    "typecheck:ui-check": "tsc --noEmit --allowJs --checkJs --strict --module esnext --moduleResolution bundler --target es2022 --skipLibCheck --types vite/client scripts/ui-check/scenarios.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

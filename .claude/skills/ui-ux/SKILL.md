@@ -55,32 +55,51 @@ drift to the user rather than silently picking one.
    `dw-noresults`) and the `Icon` wrapper (lucide-react) before writing new ones.
 2. Implement with tokens only: `var(--ink)`, `var(--surface)`, `var(--accent)`
    and so on. No hex, rgb or font names in `.dw-app` components.
-3. Run `npm run ui:check` (add `--only=signin,pricing` to narrow it). It saves
-   screenshots to `ui-shots/<screen>-<mobile|desktop>-<light|dark>.png` and
-   runs an axe-core WCAG 2.2 AA scan.
+3. Run `npm run ui:check`. Narrow it with `--only=<screens>` (for example
+   `--only=timeline,add`) and pick data with `--scenario=<names>` (or `all`).
+   It saves screenshots to `ui-shots/` and runs an axe-core WCAG 2.2 AA scan.
+   Signed-out screens are named `<screen>-<mobile|desktop>-<light|dark>.png`,
+   signed-in ones `<screen>-<scenario>-<mobile|desktop>-<light|dark>.png`.
 4. **Open the screenshots for the screens you changed** with Read, in both
    widths and both themes, and review them against the checklist below.
 5. Fix, re-run, and repeat until the screenshots look right and axe reports no
    new serious or critical issues.
-6. Tell the user what you checked and anything you couldn't check (for
-   example, signed-in screens when no test account is configured).
+6. Tell the user what you checked and anything you couldn't check.
 
 ### About the check
 
-- Signed-out screens (sign in, sign up, pricing, privacy, terms, refund) always
-  run. Timeline, Insights, Profile and the intro tour run only when `.env` has
-  real `VITE_SUPABASE_*` values plus `UI_CHECK_EMAIL` / `UI_CHECK_PASSWORD` for
-  a throwaway test account. If they're missing, say that those screens were
-  not checked.
+- Screens: `signin`, `signup`, `pricing`, `privacy`, `terms`, `refund`
+  (signed out), and `timeline`, `insights`, `profile`, `add` (the add-win
+  sheet) and `tour` (signed in).
+- Signed-in screens run against a fake Supabase inside the browser
+  (`scripts/ui-check/fake-supabase.mjs`). No account or secret is needed, and
+  the check never contacts a real project: it forces a fake Supabase URL and
+  blocks every host except the dev server, the fake and Google Fonts.
+- The data comes from scenarios in `scripts/ui-check/scenarios.mjs`:
+  `default` (a 5-day streak, about 10 weeks of history), `empty` (new
+  account), `busy` (20 categories, 60-day streak, very long text), `error`
+  (every database call fails) and `offline` (goes offline after loading). When
+  a change needs a state no scenario covers, add one there. Fixture shapes are
+  typed against `src/lib/supabase.ts` and checked by
+  `npm run typecheck:ui-check`, which CI runs.
+- The fixtures are fake, so the check proves how the UI looks, not that the
+  backend works. Unit tests and the CI migration dry-run cover the backend. If
+  the check reports a call the fake can't answer, extend
+  `fake-supabase.mjs` rather than working around it.
+- A full run of one scenario takes about 3–4 minutes; use `--only` while
+  iterating.
 - The sandbox may not reach Google Fonts, so screenshots can show Georgia or
   system-ui instead of Bricolage and Hanken. Judge layout, color and spacing
   from them, not the typefaces.
 - Known issues as of this skill's creation, which the check will report until
-  they're fixed: the password show/hide button on the auth screen has no
-  accessible name; white text on the Sunrise accent button is 3.07:1; and the
-  Tailwind policy pages (privacy, terms, refund) have low-contrast body text in
-  dark mode. Don't add to this list. If your change touches one of these,
-  fix it.
+  they're fixed: icon-only buttons and a few inputs without accessible names
+  (auth, profile, add sheet); white text on the Sunrise accent and on the
+  avatar initials failing contrast; small tour dots (`target-size`); and
+  low-contrast body text on the Tailwind policy pages in dark mode. Beyond
+  axe: in the `error` scenario the timeline shows the new-account empty state
+  instead of an error, and `OfflineIndicator` is not mounted, so the app shows
+  nothing when offline. Don't add to this list. If your change touches one of
+  these, fix it.
 
 ## Checklist
 
@@ -115,7 +134,8 @@ drift to the user rather than silently picking one.
   start here"),
 - error (plain language, what happened and how to fix it, a retry),
 - offline (the app is offline-first; say what's pending sync, see
-  `OfflineIndicator` and `src/lib/offline.ts`),
+  `src/lib/offline.ts`; `src/components/OfflineIndicator.tsx` exists but is not
+  mounted yet),
 - optimistic updates that roll back visibly if the server rejects them.
 
 **Interaction and accessibility**

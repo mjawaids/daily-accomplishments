@@ -83,7 +83,6 @@ cp .env.example .env
 | `PADDLE_WEBHOOK_SECRET` | optional | Server-side Paddle webhook secret (Netlify) |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ for functions | Server-side key for Netlify functions |
 | `ONESIGNAL_REST_API_KEY` | optional | **Secret.** Server-side OneSignal key (Netlify) |
-| `UI_CHECK_EMAIL` / `UI_CHECK_PASSWORD` | optional | Local only. A throwaway test account that `npm run ui:check` signs in with to screenshot the signed-in screens |
 
 Node 22 is pinned in `.nvmrc` — `@supabase/supabase-js` declares `engines: node >=22`.
 
@@ -205,9 +204,10 @@ npm run lint     # run ESLint
 npm test         # run unit tests (Vitest)
 npm run typecheck:functions   # typecheck the Netlify functions
 npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/ + axe WCAG 2.2 AA scan
+npm run typecheck:ui-check    # typecheck the ui:check fixtures against the database types
 ```
 
-`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It always covers the signed-out screens (auth, pricing, policies). Timeline, Insights, Profile and the intro tour are included only when `.env` has real Supabase values and `UI_CHECK_EMAIL` / `UI_CHECK_PASSWORD`. It exits non-zero on serious or critical accessibility violations. Pass `--only=signin,pricing` to limit screens or `--no-axe` to skip the scan.
+`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet and the intro tour). Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--no-axe` skips the scan.
 
 ## 📁 Project Structure
 
@@ -215,7 +215,7 @@ npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/
 daily-accomplishments/
 ├── .claude/skills/ui-ux/SKILL.md  # UI/UX playbook for Claude: design rules, checklist, Claude Design handoff
 ├── .github/workflows/
-│   ├── ci.yml                     # PR checks: lint, tests, typecheck, build, migration dry-run
+│   ├── ci.yml                     # PR checks: lint, tests, typecheck (functions + ui:check fixtures), build, migration dry-run
 │   └── deploy.yml                 # main: migrate, deploy to Netlify, tag + release
 ├── public/
 │   ├── manifest.json              # PWA manifest
@@ -266,7 +266,8 @@ daily-accomplishments/
 │   └── paddle-webhook.ts          # Paddle webhook (optional)
 ├── scripts/
 │   ├── check-build-env.mjs        # Fails the Netlify build if required VITE_* vars are missing
-│   └── ui-check.mjs               # npm run ui:check: screenshots + axe accessibility scan
+│   ├── ui-check.mjs               # npm run ui:check: screenshots + axe accessibility scan
+│   └── ui-check/                  # Fake Supabase + fixture scenarios for ui:check
 └── vite.config.ts                 # Vite + PWA (Workbox) config; injects __APP_VERSION__
 ```
 (Unit tests sit beside the code as `*.test.ts`.)
