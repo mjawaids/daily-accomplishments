@@ -123,21 +123,26 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
         <form className="dw-auth-form" onSubmit={submit}>
           <div style={{ width: '100%' }}>
             {onBack && (
-              <button type="button" className="dw-iconbtn" style={{ marginBottom: 18 }} onClick={onBack} title="Back">
+              <button type="button" className="dw-iconbtn" style={{ marginBottom: 18 }} onClick={onBack} title="Back" aria-label="Back">
                 <Icon name="chevL" size={20} />
               </button>
             )}
-            <h2 className="dw-display" style={{ fontSize: 25, fontWeight: 700, marginBottom: 6 }}>
+            <h1 className="dw-display" style={{ fontSize: 25, fontWeight: 700, marginBottom: 6 }}>
               {isSignup ? 'Create your account' : 'Welcome back'}
-            </h2>
+            </h1>
             <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 22 }}>
               {isSignup ? 'Start your streak today — it’s free.' : 'Pick up where you left off.'}
             </p>
-            <div className="dw-segment">
-              <button type="button" className={!isSignup ? 'active' : ''} onClick={() => setMode('signin')}>
+            <div className="dw-segment" role="group" aria-label="Sign in or sign up">
+              <button
+                type="button"
+                className={!isSignup ? 'active' : ''}
+                aria-pressed={!isSignup}
+                onClick={() => setMode('signin')}
+              >
                 Sign in
               </button>
-              <button type="button" className={isSignup ? 'active' : ''} onClick={() => setMode('signup')}>
+              <button type="button" className={isSignup ? 'active' : ''} aria-pressed={isSignup} onClick={() => setMode('signup')}>
                 Sign up
               </button>
             </div>
@@ -148,28 +153,46 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
             <div className="dw-divider">or</div>
             {isSignup && (
               <div className="dw-field">
-                <label>Name</label>
+                <label htmlFor="dw-auth-name">Name</label>
                 <div className="dw-inputrow">
                   <Icon name="user" size={18} />
-                  <input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input
+                    id="dw-auth-name"
+                    autoComplete="name"
+                    placeholder="Your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
                 </div>
               </div>
             )}
             <div className="dw-field">
-              <label>Email</label>
+              <label htmlFor="dw-auth-email">Email</label>
               <div className="dw-inputrow">
                 <Icon name="mail" size={18} />
-                <input type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <input
+                  id="dw-auth-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-describedby={error ? 'dw-auth-error' : undefined}
+                />
               </div>
             </div>
             <div className="dw-field">
-              <label>Password</label>
+              <label htmlFor="dw-auth-password">Password</label>
               <div className="dw-inputrow">
                 <Icon name="lock" size={18} />
                 <input
+                  id="dw-auth-password"
                   type={show ? 'text' : 'password'}
                   required
                   minLength={6}
+                  autoComplete={isSignup ? 'new-password' : 'current-password'}
+                  aria-describedby={error ? 'dw-auth-error' : undefined}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -178,33 +201,46 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
                   type="button"
                   className="dw-iconbtn"
                   style={{ width: 30, height: 30, boxShadow: 'none', background: 'transparent' }}
+                  aria-label={show ? 'Hide password' : 'Show password'}
+                  aria-pressed={show}
                   onClick={() => setShow((s) => !s)}
                 >
-                  <Icon name="eye" size={17} />
+                  <Icon name={show ? 'eyeOff' : 'eye'} size={17} />
                 </button>
               </div>
             </div>
-            {error && (
-              <div
-                style={{
-                  background: 'color-mix(in oklab, var(--cat-personal) 12%, var(--surface))',
-                  border: '1px solid color-mix(in oklab, var(--cat-personal) 30%, transparent)',
-                  borderRadius: 12,
-                  padding: '10px 12px',
-                  marginBottom: 12,
-                  color: 'var(--cat-personal)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            <div role="alert">
+              {error && (
+                <div
+                  id="dw-auth-error"
+                  style={{
+                    background: 'color-mix(in oklab, var(--danger) 12%, var(--surface))',
+                    border: '1px solid color-mix(in oklab, var(--danger) 30%, transparent)',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    marginBottom: 12,
+                    color: 'var(--danger)',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+            </div>
             <button type="submit" className="dw-btn block" style={{ marginTop: 6, height: 46 }} disabled={loading}>
               {loading ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'}
             </button>
-            <p style={{ fontSize: 11.5, color: 'var(--muted)', textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
-              Secured by Supabase Auth. By continuing you agree to our Terms &amp; Privacy Policy.
+            <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
+              Secured by Supabase Auth. By continuing you agree to our{' '}
+              <a href="/terms" className="dw-inline-link">
+                Terms
+              </a>{' '}
+              &amp;{' '}
+              <a href="/privacy" className="dw-inline-link">
+                Privacy Policy
+              </a>
+              .
             </p>
           </div>
         </form>

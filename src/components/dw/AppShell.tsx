@@ -8,7 +8,8 @@ import { useDevice, useResolvedTheme } from './useDevice';
 import type { Device } from './useDevice';
 import { Icon, Logo } from './icons';
 import type { IconName } from './icons';
-import { Avatar, EntryForm } from './components';
+import { Avatar, EntryForm, Sheet } from './components';
+import { OfflineIndicator } from '../OfflineIndicator';
 import { Timeline, Insights } from './screens';
 import { Profile } from './screens2';
 import { InstallPrompt } from '../InstallPrompt';
@@ -20,14 +21,23 @@ import { Onboarding } from './Onboarding';
 function Sidebar() {
   const { screen, setScreen, entries, openAdd, prefs } = useDW();
   const item = (id: 'timeline' | 'insights', icon: IconName, label: string) => (
-    <button key={id} className={'dw-navitem' + (screen === id ? ' active' : '')} onClick={() => setScreen(id)}>
+    <button
+      key={id}
+      className={'dw-navitem' + (screen === id ? ' active' : '')}
+      aria-current={screen === id ? 'page' : undefined}
+      onClick={() => setScreen(id)}
+    >
       <Icon name={icon} size={20} />
       <span className="lbl">{label}</span>
-      {id === 'timeline' && <span className="ct">{entries.length}</span>}
+      {id === 'timeline' && (
+        <span className="ct" aria-label={`${entries.length} ${entries.length === 1 ? 'win' : 'wins'}`}>
+          {entries.length}
+        </span>
+      )}
     </button>
   );
   return (
-    <div className="dw-sidebar">
+    <nav className="dw-sidebar" aria-label="Main">
       <div style={{ padding: '4px 8px 22px' }}>
         <Logo size={32} fontSize={20} />
       </div>
@@ -43,6 +53,7 @@ function Sidebar() {
       <button
         className={'dw-navitem' + (screen === 'profile' ? ' active' : '')}
         title="Profile"
+        aria-current={screen === 'profile' ? 'page' : undefined}
         onClick={() => setScreen('profile')}
         style={{ marginTop: 'auto', gap: 10, padding: '10px 8px', borderTop: '1px solid var(--line)', borderRadius: 0 }}
       >
@@ -51,10 +62,10 @@ function Sidebar() {
           <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {prefs.name}
           </div>
-          <div style={{ color: 'var(--muted)', fontSize: 11.5 }}>Free plan</div>
+          <div className="sub">Free plan</div>
         </div>
       </button>
-    </div>
+    </nav>
   );
 }
 
@@ -66,14 +77,19 @@ function MobileNav() {
     ['insights', 'insights', 'Insights'],
   ];
   return (
-    <div className="dw-tabbar">
+    <nav className="dw-tabbar" aria-label="Main">
       {items.map(([id, icon, label]) => (
-        <button key={id} className={'dw-tab' + (screen === id ? ' active' : '')} onClick={() => setScreen(id)}>
+        <button
+          key={id}
+          className={'dw-tab' + (screen === id ? ' active' : '')}
+          aria-current={screen === id ? 'page' : undefined}
+          onClick={() => setScreen(id)}
+        >
           <Icon name={icon} size={22} />
           <span>{label}</span>
         </button>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -83,12 +99,9 @@ function AddEditLayer() {
   if (!sheetOpen) return null;
   const close = () => setSheetOpen(false);
   return (
-    <div className="dw-scrim" onClick={close}>
-      <div className="dw-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="dw-grab" />
-        <EntryForm onDone={close} />
-      </div>
-    </div>
+    <Sheet labelledBy="dw-entry-title" onClose={close}>
+      <EntryForm onDone={close} titleId="dw-entry-title" />
+    </Sheet>
   );
 }
 
@@ -107,36 +120,28 @@ export function AppShell() {
   return (
     <div className="dw-app" data-device={device} data-theme={theme} data-accent="sunrise" data-font="bricolage">
       {loading ? (
-        <div className="dw-scroll" style={{ display: 'grid', placeItems: 'center' }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              border: '4px solid var(--line-2)',
-              borderTopColor: 'var(--accent)',
-              borderRadius: '50%',
-              animation: 'dw-spin 0.8s linear infinite',
-            }}
-          />
-          <style>{'@keyframes dw-spin{to{transform:rotate(360deg)}}'}</style>
+        <div className="dw-scroll" style={{ display: 'grid', placeItems: 'center' }} role="status">
+          <div className="dw-spinner" aria-hidden="true" />
+          <span className="dw-sr-only">Loading your wins…</span>
         </div>
       ) : device === 'desktop' ? (
         <>
           <Sidebar />
-          <div className="dw-main">
+          <main className="dw-main">
             <div className="dw-scroll">
               <Screen device={device} />
             </div>
-          </div>
+          </main>
         </>
       ) : (
         <>
-          <div className="dw-scroll">
+          <main className="dw-scroll">
             <Screen device={device} />
-          </div>
+          </main>
           <MobileNav />
         </>
       )}
+      <OfflineIndicator />
       <AddEditLayer />
       <CategorySheet />
       <Toast />

@@ -219,18 +219,21 @@ export interface WeekBar {
   label: string;
   count: number;
   isToday: boolean;
+  /** Full weekday name ("Tuesday"), for screen readers and the best-day label. */
+  fullLabel: string;
 }
 
 /** last-7-day counts for the bar chart */
 export function weekBars(entries: Win[]): WeekBar[] {
   const out: WeekBar[] = [];
   const D = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const k = isoLocal(d);
     const count = entries.filter((e) => dayKey(e.ts) === k).length;
-    out.push({ label: D[d.getDay()], count, isToday: i === 0 });
+    out.push({ label: D[d.getDay()], fullLabel: FULL[d.getDay()], count, isToday: i === 0 });
   }
   return out;
 }

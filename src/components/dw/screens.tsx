@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDW } from './useDW';
 import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
-import { Avatar, DateHead, EntryCard, Kbd, QuickComposer } from './components';
+import { Avatar, DateHead, EntryCard, Kbd, LoadErrorBanner, QuickComposer } from './components';
 import { isTypingTarget } from './keys';
 import {
   computeStreak,
@@ -255,6 +255,7 @@ function FilterPanel({ open, inputRef, query, setQuery, day, setDay, catIds, tog
 export function Timeline({ device }: { device: Device }) {
   const {
     entries,
+    loadError,
     prefs,
     visibleDays,
     setVisibleDays,
@@ -406,11 +407,13 @@ export function Timeline({ device }: { device: Device }) {
         onEscape={() => (filtering ? inputRef.current?.blur() : closePanel())}
       />
 
+      <LoadErrorBanner />
+
       {/* composing and filtering take turns: the composer folds away while the panel is open */}
       <div className={'dw-collapse bleed' + (open ? '' : ' open')}>
         <div>
           <div>
-            {!hasToday && (
+            {!hasToday && !loadError && (
               <div style={{ marginBottom: 16 }}>
                 <StreakNudge streak={streak} />
               </div>
@@ -434,7 +437,7 @@ export function Timeline({ device }: { device: Device }) {
       )}
 
       {entries.length === 0 ? (
-        <Empty />
+        loadError ? null : <Empty />
       ) : groups.length === 0 ? (
         <div className="dw-noresults">
           <Icon name={day && activeFilters === 1 ? 'calendar' : 'search'} size={28} />
@@ -493,11 +496,11 @@ export function Timeline({ device }: { device: Device }) {
             <div className="dw-credit">
               {`That's all ${entries.length} wins. `}
               <br />
-              Developed with ❤️ by{' '}
+              Developed by{' '}
               <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
                 Jawaid
               </a>{' '}
-              · Powered by 🚀{' '}
+              · Powered by{' '}
               <a href="https://ibexoft.com" target="_blank" rel="noreferrer">
                 Ibexoft
               </a>
@@ -511,7 +514,7 @@ export function Timeline({ device }: { device: Device }) {
 
 // ============================================ INSIGHTS
 export function Insights({ device }: { device: Device }) {
-  const { entries, setScreen, categories, jumpToDay } = useDW();
+  const { entries, loadError, setScreen, categories, jumpToDay, openAdd } = useDW();
   const streak = computeStreak(entries);
   const thisWeek = entriesThisWeek(entries);
   const total = entries.length;
@@ -520,21 +523,39 @@ export function Insights({ device }: { device: Device }) {
   const mix = categoryMix(entries, categories);
   const cells = heatCells(entries);
   const maxCell = Math.max(1, ...cells.map((c) => c.c));
-  const bestDay = bars.reduce((a, b) => (b.count > a.count ? b : a), bars[0] || { count: 0, label: '' });
+  const bestDay = bars.reduce((a, b) => (b.count > a.count ? b : a), bars[0] || { count: 0, label: '', fullLabel: '' });
+  const noData = loadError && total === 0;
+  const dash = (n: number) => (noData ? '—' : n);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 60);
     return () => clearTimeout(t);
   }, []);
 
+  // Roving focus for the heatmap: the grid is one Tab stop, arrows move within it.
+  const [heatFocus, setHeatFocus] = useState(() => Math.max(0, cells.length - 1));
+  const heatRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const onHeatKey = (e: React.KeyboardEvent) => {
+    const step: Record<string, number> = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 };
+    let next: number;
+    if (e.key in step) next = heatFocus + step[e.key];
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = cells.length - 1;
+    else return;
+    e.preventDefault();
+    next = Math.max(0, Math.min(cells.length - 1, next));
+    setHeatFocus(next);
+    heatRefs.current[next]?.focus();
+  };
+
   const heatColor = (c: number) =>
     c === 0 ? 'var(--surface-2)' : `color-mix(in oklab, var(--accent) ${20 + (c / maxCell) * 70}%, var(--surface-2))`;
 
-  const statCards: Array<[ 'flame' | 'spark' | 'check' | 'target', number, string, string ]> = [
-    ['flame', streak, 'day streak', 'var(--accent)'],
+  const statCards: Array<['flame' | 'spark' | 'check' | 'target', number, string, string]> = [
+    ['flame', streak, 'day streak', 'var(--accent-text)'],
     ['spark', thisWeek, 'this week', 'var(--accent-2)'],
     ['check', total, 'total wins', 'var(--cat-health)'],
-    ['target', bestDay.count, `best day (${bestDay.label})`, 'var(--cat-learning)'],
+    ['target', bestDay.count, bestDay.count ? `best day (${bestDay.fullLabel})` : 'best day this week', 'var(--cat-learning)'],
   ];
 
   return (
@@ -545,12 +566,29 @@ export function Insights({ device }: { device: Device }) {
         title="Insights"
         right={
           device === 'mobile' ? (
-            <button className="dw-iconbtn" title="Profile" onClick={() => setScreen('profile')}>
+            <button className="dw-iconbtn" title="Profile" aria-label="Profile" onClick={() => setScreen('profile')}>
               <Avatar size={40} />
             </button>
           ) : null
         }
       />
+
+      <LoadErrorBanner />
+
+      {!noData && total === 0 && (
+        <div className="dw-nudge" style={{ marginBottom: 16 }}>
+          <div className="ico">
+            <Icon name="spark" size={20} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="t">Your insights start with one win</div>
+            <div className="s">Streaks, patterns and your busiest days show up here as you log.</div>
+          </div>
+          <button className="dw-btn sm" onClick={openAdd}>
+            Log a win
+          </button>
+        </div>
+      )}
 
       <div className="dw-statgrid" style={{ marginBottom: 16 }}>
         {statCards.map((s, i) => (
@@ -570,31 +608,34 @@ export function Insights({ device }: { device: Device }) {
                 <Icon name={s[0]} size={16} sw={2.2} />
               </div>
             </div>
-            <div className="v">{s[1]}</div>
+            <div className="v">{dash(s[1])}</div>
             <div className="k">{s[2]}</div>
           </div>
         ))}
       </div>
 
       <div className="dw-stat" style={{ marginBottom: 16 }}>
-        <div className="dw-section-label">Last 7 days</div>
-        <div className="dw-bars">
+        <h2 className="dw-section-label">Last 7 days</h2>
+        <ul className="dw-bars" aria-label="Wins per day, last 7 days">
           {bars.map((b, i) => (
-            <div key={i} className={'bar' + (b.count === maxBar && b.count > 0 ? ' peak' : '')}>
-              <span className="val" style={{ opacity: b.count ? 1 : 0.35 }}>
+            <li key={i} className={'bar' + (b.count === maxBar && b.count > 0 ? ' peak' : '')}>
+              <span className={'val' + (b.count ? '' : ' zero')} aria-hidden="true">
                 {b.count}
               </span>
               <div className="col" style={{ height: mounted ? Math.max(6, (b.count / maxBar) * 100) + '%' : '6px' }} />
-              <span className="lab" style={b.isToday ? { color: 'var(--accent)' } : undefined}>
+              <span className={'lab' + (b.isToday ? ' today' : '')} aria-hidden="true">
                 {b.label}
               </span>
-            </div>
+              <span className="dw-sr-only">
+                {`${b.isToday ? 'Today' : b.fullLabel}: ${b.count} ${b.count === 1 ? 'win' : 'wins'}`}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       <div className="dw-stat" style={{ marginBottom: 16 }}>
-        <div className="dw-section-label">Category mix</div>
+        <h2 className="dw-section-label">Category mix</h2>
         <div className="dw-mix">
           {mix.map((m) => (
             <div key={m.category.id} className="m">
@@ -626,26 +667,41 @@ export function Insights({ device }: { device: Device }) {
 
       <div className="dw-stat" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 11 }}>
-          <div className="dw-section-label" style={{ margin: 0 }}>
+          <h2 className="dw-section-label" style={{ margin: 0 }} id="dw-heat-label">
             Activity — last 12 weeks
-          </div>
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>less → more</span>
+          </h2>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }} aria-hidden="true">
+            less → more
+          </span>
         </div>
+        {/* One tab stop; arrow keys move between days (columns are weeks). */}
         <div
+          role="group"
+          aria-labelledby="dw-heat-label"
+          aria-describedby="dw-heat-hint"
+          onKeyDown={onHeatKey}
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(12, 1fr)',
+            gridTemplateColumns: device === 'desktop' ? 'repeat(12, minmax(0, 36px))' : 'repeat(12, 1fr)',
             gap: 4,
             gridAutoFlow: 'column',
             gridTemplateRows: 'repeat(7,1fr)',
           }}
         >
+          <span id="dw-heat-hint" className="dw-sr-only">
+            Use the arrow keys to move between days. Press Enter to see that day's wins.
+          </span>
           {cells.map((c, i) => (
             <button
               key={c.k}
+              ref={(el) => {
+                heatRefs.current[i] = el;
+              }}
               className="dw-heatcell"
+              tabIndex={i === heatFocus ? 0 : -1}
               title={`${c.c} on ${c.k}`}
               aria-label={`${c.c} ${c.c === 1 ? 'win' : 'wins'} on ${dayLabel(dayKeyTs(c.k))}`}
+              onFocus={() => setHeatFocus(i)}
               onClick={() => jumpToDay(c.k)}
               style={{
                 aspectRatio: '1',

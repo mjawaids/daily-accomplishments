@@ -1,7 +1,8 @@
 /* DailyWins — Profile + Empty screens (rendered inside the app shell).
    Ported from the Claude Design handoff (app/screens2.jsx). Accent picker and
    "restore sample data" are dropped per the agreed scope (defaults only). */
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { LoadErrorBanner, Sheet } from './components';
 import { useDW } from './useDW';
 import type { Theme } from './WinsProvider';
 import type { Device } from './useDevice';
@@ -24,24 +25,57 @@ interface ToggleRowProps {
 }
 
 function ToggleRow({ icon, title, sub, on, onToggle, disabled, busy }: ToggleRowProps) {
+  const id = useId();
+  // Only the switch dims when it can't be used; the label and the reason
+  // under it stay readable.
   return (
-    <div className="dw-prefrow" style={disabled ? { opacity: 0.45 } : undefined}>
+    <div className="dw-prefrow">
       <div className="ico">
         <Icon name={icon} size={18} />
       </div>
       <div className="lbl">
-        <div className="t">{title}</div>
-        {sub && <div className="s">{sub}</div>}
+        <div className="t" id={`${id}-t`}>
+          {title}
+        </div>
+        {sub && (
+          <div className="s" id={`${id}-s`}>
+            {sub}
+          </div>
+        )}
       </div>
       <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby={`${id}-t`}
+        aria-describedby={sub ? `${id}-s` : undefined}
+        aria-busy={busy || undefined}
         className={'dw-toggle' + (on ? ' on' : '')}
         onClick={onToggle}
         disabled={disabled || busy}
-        style={busy ? { opacity: 0.6 } : undefined}
       >
         <span className="knob" />
       </button>
     </div>
+  );
+}
+
+/** Asks before deleting every win. */
+function ClearAllSheet({ count, onConfirm, onClose }: { count: number; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <Sheet labelledBy="dw-clear-title" onClose={onClose}>
+      <h3 id="dw-clear-title">{count === 1 ? 'Delete your 1 win?' : `Delete all ${count} wins?`}</h3>
+      <p className="dw-danger-note">Every win in every category will be deleted. This can’t be undone.</p>
+      <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+        <button className="dw-btn ghost" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="dw-btn block danger" onClick={onConfirm}>
+          <Icon name="trash" size={17} />
+          Delete all wins
+        </button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -65,14 +99,17 @@ export function Profile({ device }: { device: Device }) {
     catById,
     setCategorySheet,
     openTour,
+    loadError,
   } = useDW();
+  const [confirmClear, setConfirmClear] = useState(false);
   const atCategoryLimit = categories.length >= MAX_CATEGORIES;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(prefs.name);
-  const [email, setEmail] = useState(prefs.email);
 
+  // Only the display name is editable: the email is the sign-in address and
+  // can't be changed from here.
   const saveProfile = () => {
-    setPrefs((p) => ({ ...p, name, email }));
+    setPrefs((p) => ({ ...p, name: name.trim() || p.name }));
     setEditing(false);
   };
 
@@ -135,13 +172,15 @@ export function Profile({ device }: { device: Device }) {
     <div className={device === 'desktop' ? 'dw-canvas' : undefined}>
       <div className="dw-top" style={device === 'desktop' ? { padding: '0 0 14px' } : undefined}>
         <h1>Profile</h1>
-        <button className="dw-iconbtn" onClick={() => setScreen('timeline')}>
+        <button className="dw-iconbtn" aria-label="Back to your wins" title="Back to your wins" onClick={() => setScreen('timeline')}>
           <Icon name="home" size={19} />
         </button>
       </div>
 
+      <LoadErrorBanner />
+
       <div className="dw-prof-head">
-        <div className="dw-avatar" style={avatarUrl ? { overflow: 'hidden' } : undefined}>
+        <div className="dw-avatar" aria-hidden="true" style={avatarUrl ? { overflow: 'hidden' } : undefined}>
           {avatarUrl ? (
             <img src={avatarUrl} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
@@ -154,9 +193,18 @@ export function Profile({ device }: { device: Device }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input className="dw-input" value={name} onChange={(e) => setName(e.target.value)} style={{ height: 40 }} />
-              <input className="dw-input" value={email} onChange={(e) => setEmail(e.target.value)} style={{ height: 40 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input
+                className="dw-input"
+                aria-label="Display name"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && saveProfile()}
+                style={{ height: 44 }}
+                autoFocus
+              />
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>{prefs.email}</div>
             </div>
           ) : (
             <>
@@ -166,16 +214,27 @@ export function Profile({ device }: { device: Device }) {
               <div style={{ color: 'var(--muted)', fontSize: 13.5 }}>{prefs.email}</div>
               <div style={{ display: 'flex', gap: 14, marginTop: 8, fontSize: 12.5, color: 'var(--ink-2)', fontWeight: 600 }}>
                 <span>
-                  <b style={{ color: 'var(--accent)' }}>{entries.length}</b> wins
+                  <b style={{ color: 'var(--accent-text)' }}>{loadError && !entries.length ? '—' : entries.length}</b> wins
                 </span>
                 <span>
-                  <b style={{ color: 'var(--accent)' }}>{computeStreak(entries)}</b> day streak
+                  <b style={{ color: 'var(--accent-text)' }}>{loadError && !entries.length ? '—' : computeStreak(entries)}</b> day
+                  streak
                 </span>
               </div>
             </>
           )}
         </div>
-        <button className="dw-btn ghost sm" onClick={() => (editing ? saveProfile() : setEditing(true))}>
+        <button
+          className="dw-btn ghost sm"
+          aria-label={editing ? 'Save name' : 'Edit name'}
+          onClick={() => {
+            if (editing) saveProfile();
+            else {
+              setName(prefs.name);
+              setEditing(true);
+            }
+          }}
+        >
           {editing ? 'Save' : 'Edit'}
         </button>
       </div>
@@ -183,20 +242,24 @@ export function Profile({ device }: { device: Device }) {
       <div style={{ height: 18 }} />
 
       {/* appearance */}
-      <div className="dw-section-label">Appearance</div>
+      <h2 className="dw-section-label">Appearance</h2>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
         <div className="dw-prefrow">
           <div className="ico">
             <Icon name={prefs.theme === 'dark' ? 'moon' : prefs.theme === 'sync' ? 'device' : 'sun'} size={18} />
           </div>
           <div className="lbl">
-            <div className="t">Theme</div>
-            <div className="s">Syncs with your device when set to Auto</div>
+            <div className="t" id="dw-theme-label">
+              Theme
+            </div>
+            <div className="s">Auto follows your device</div>
           </div>
-          <div className="dw-seg3">
+          <div className="dw-seg3" role="group" aria-labelledby="dw-theme-label">
             {themeOptions.map(([v, l]) => (
               <button
                 key={v}
+                type="button"
+                aria-pressed={prefs.theme === v}
                 className={prefs.theme === v ? 'active' : ''}
                 onClick={() => setPrefs((p) => ({ ...p, theme: v }))}
               >
@@ -208,7 +271,12 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       {/* notifications */}
-      <div className="dw-section-label">Notifications</div>
+      <h2 className="dw-section-label">Notifications</h2>
+      {!settingsLoading && !settings && (
+        <p className="dw-danger-note" role="status">
+          Couldn't load your notification settings. Check your connection, then reopen Profile.
+        </p>
+      )}
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
         <ToggleRow
           icon="bell"
@@ -223,9 +291,11 @@ export function Profile({ device }: { device: Device }) {
           icon="clock"
           title="Evening reminder"
           sub={
-            settings
-              ? `Nudge me at ${formatReminderTime(settings.reminder_local_time)} to log a win`
-              : 'Nudge me to log a win'
+            !pushOn
+              ? 'Turn on push notifications first'
+              : settings
+                ? `Nudge me at ${formatReminderTime(settings.reminder_local_time)} to log a win`
+                : 'Nudge me to log a win'
           }
           on={settings?.evening_reminder_enabled ?? false}
           onToggle={() =>
@@ -235,19 +305,25 @@ export function Profile({ device }: { device: Device }) {
         />
 
         {/* reminder time */}
-        <div className="dw-prefrow" style={!reminderOn ? { opacity: 0.45 } : undefined}>
+        <div className="dw-prefrow">
           <div className="ico">
             <Icon name="clock" size={18} />
           </div>
           <div className="lbl">
-            <div className="t">Reminder time</div>
-            <div className="s">Your local time, in 15-minute steps</div>
+            <label className="t" htmlFor="dw-reminder-time" style={{ display: 'block' }}>
+              Reminder time
+            </label>
+            <div className="s" id="dw-reminder-time-hint">
+              {reminderOn ? 'Your local time, in 15-minute steps' : 'Turn on the reminder first'}
+            </div>
           </div>
           <input
+            id="dw-reminder-time"
+            aria-describedby="dw-reminder-time-hint"
             type="time"
             step={900}
             className="dw-input"
-            style={{ height: 40, width: 'auto' }}
+            style={{ height: 44, width: 'auto', opacity: reminderOn ? 1 : 0.45 }}
             disabled={!reminderOn}
             value={settings ? toInputTime(settings.reminder_local_time) : '20:00'}
             onChange={(e) => {
@@ -286,7 +362,7 @@ export function Profile({ device }: { device: Device }) {
           </span>
         </div>
 
-        <div className="dw-prefrow" style={{ opacity: 0.7 }}>
+        <div className="dw-prefrow">
           <div className="ico">
             <Icon name="mail" size={18} />
           </div>
@@ -296,21 +372,21 @@ export function Profile({ device }: { device: Device }) {
           </div>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 700,
-              color: 'var(--accent)',
+              color: 'var(--accent-text)',
               background: 'var(--accent-soft)',
               padding: '3px 9px',
               borderRadius: 999,
             }}
           >
-            SOON
+            Coming soon
           </span>
         </div>
       </div>
 
       {/* categories */}
-      <div className="dw-section-label">Categories</div>
+      <h2 className="dw-section-label">Categories</h2>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
         {categories.map((c) => {
           const count = entries.filter((e) => catById(e.categoryId).id === c.id).length;
@@ -352,7 +428,7 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       {/* help */}
-      <div className="dw-section-label">Help</div>
+      <h2 className="dw-section-label">Help</h2>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
         <button className="dw-prefrow" style={{ width: '100%', textAlign: 'left' }} onClick={openTour}>
           <div className="ico">
@@ -367,31 +443,25 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       {/* account */}
-      <div className="dw-section-label">Account &amp; data</div>
+      <h2 className="dw-section-label">Account &amp; data</h2>
       <div className="dw-prefcard" style={{ marginBottom: 18 }}>
         <button
           className="dw-prefrow"
           style={{ width: '100%', textAlign: 'left' }}
-          onClick={() => {
-            clearAll();
-            setScreen('timeline');
-          }}
+          disabled={!entries.length}
+          onClick={() => setConfirmClear(true)}
         >
           <div className="ico">
             <Icon name="trash" size={18} />
           </div>
           <div className="lbl">
-            <div className="t">Clear all entries</div>
-            <div className="s">Permanently delete every win</div>
+            <div className="t">Delete all wins</div>
+            <div className="s">{entries.length ? 'Permanently delete every win' : 'You have no wins to delete'}</div>
           </div>
           <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
         </button>
-        <button
-          className="dw-prefrow"
-          style={{ width: '100%', textAlign: 'left', color: 'var(--cat-personal)' }}
-          onClick={onSignOut}
-        >
-          <div className="ico" style={{ color: 'var(--cat-personal)' }}>
+        <button className="dw-prefrow danger-text" style={{ width: '100%', textAlign: 'left' }} onClick={onSignOut}>
+          <div className="ico">
             <Icon name="logout" size={18} />
           </div>
           <div className="lbl">
@@ -403,15 +473,27 @@ export function Profile({ device }: { device: Device }) {
       <div className="dw-credit">
         DailyWins · v{__APP_VERSION__}
         <br />
-        Developed with ❤️ by{' '}
+        Developed by{' '}
         <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
           Jawaid
         </a>{' '}
-        · Powered by 🚀{' '}
+        · Powered by{' '}
         <a href="https://ibexoft.com" target="_blank" rel="noreferrer">
           Ibexoft
         </a>
       </div>
+
+      {confirmClear && (
+        <ClearAllSheet
+          count={entries.length}
+          onClose={() => setConfirmClear(false)}
+          onConfirm={() => {
+            setConfirmClear(false);
+            clearAll();
+            setScreen('timeline');
+          }}
+        />
+      )}
     </div>
   );
 }
