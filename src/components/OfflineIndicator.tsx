@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Wifi, WifiOff, FolderSync as Sync, AlertCircle } from 'lucide-react';
 import { offlineManager } from '../lib/offline';
 import { trackConnectivityEvent } from '../lib/analytics';
@@ -7,11 +7,32 @@ export function OfflineIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatus, setSyncStatus] = useState({ pendingCount: 0 });
   const [syncing, setSyncing] = useState(false);
+  // Ref mirrors `syncing` so runSync can stay stable (the effect below must not
+  // re-subscribe on every sync) without reading a stale closure value.
+  const syncingRef = useRef(false);
+
+  const runSync = useCallback(async () => {
+    if (syncingRef.current) return;
+
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await offlineManager.syncPendingOperations();
+      trackConnectivityEvent('sync');
+      const status = await offlineManager.getSyncStatus();
+      setSyncStatus(status);
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      handleSync();
+      void runSync();
     };
 
     const handleOffline = () => {
@@ -35,23 +56,7 @@ export function OfflineIndicator() {
       window.removeEventListener('offline', handleOffline);
       clearInterval(interval);
     };
-  }, []);
-
-  const handleSync = async () => {
-    if (!isOnline || syncing) return;
-
-    setSyncing(true);
-    try {
-      await offlineManager.syncPendingOperations();
-      trackConnectivityEvent('sync');
-      const status = await offlineManager.getSyncStatus();
-      setSyncStatus(status);
-    } catch (error) {
-      console.error('Manual sync failed:', error);
-    } finally {
-      setSyncing(false);
-    }
-  };
+  }, [runSync]);
 
   if (isOnline && syncStatus.pendingCount === 0) {
     return null; // Don't show indicator when online and synced
@@ -88,7 +93,7 @@ export function OfflineIndicator() {
 
         {isOnline && syncStatus.pendingCount > 0 && (
           <button
-            onClick={handleSync}
+            onClick={runSync}
             disabled={syncing}
             className="flex items-center space-x-1 px-2 py-1 bg-blue-600 text-white rounded-full text-xs hover:bg-blue-700 disabled:opacity-50 transition-all"
           >

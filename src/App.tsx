@@ -14,6 +14,7 @@ import RefundPolicy from './pages/RefundPolicy';
 import TermsConditions from './pages/TermsConditions';
 import Pricing from './pages/Pricing';
 import CheckoutSuccess from './pages/CheckoutSuccess';
+import { openCheckout } from './lib/paddle';
 import type { User } from '@supabase/supabase-js';
 
 type AppState = 'auth' | 'app';
@@ -87,7 +88,6 @@ function App() {
             passthrough: JSON.stringify({ userId: user.id }),
             success_url: `${window.location.origin}/checkout-success`,
           } as Record<string, unknown>;
-          const { openCheckout } = await import('./lib/paddle');
           await openCheckout(priceId, options);
         }
       } catch (err) {

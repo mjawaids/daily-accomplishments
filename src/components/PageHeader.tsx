@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, ArrowLeft } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
