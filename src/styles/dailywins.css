@@ -144,7 +144,7 @@
   display:grid;place-items:center;box-shadow:0 8px 20px -8px color-mix(in oklab,var(--accent) 70%,transparent);flex:none}
 .dw-logo{display:flex;align-items:center;gap:11px}
 .dw-logo .word{font-family:var(--font-display);font-weight:700;letter-spacing:-0.02em;color:var(--ink)}
-.dw-logo .word b{color:var(--accent);font-weight:700}
+.dw-logo .word b{color:var(--accent-text);font-weight:700}
 
 /* ============================================================ top header (mobile) */
 .dw-top{display:flex;align-items:center;justify-content:space-between;padding:6px 0 12px}
