@@ -30,15 +30,16 @@ Client (Browser)
 
 ## Setup Steps
 
-### 1. Create Supabase Profiles Table
+### 1. Supabase Profiles Table
 
-Run this migration in your Supabase dashboard:
+The `profiles` table is created by
+`supabase/migrations/20260918192400_20250113_create_profiles_table.sql.sql`.
+In production the deploy workflow applies migrations automatically (see
+[DEPLOYMENT.md](DEPLOYMENT.md)); don't run it by hand there. For a fresh
+personal Supabase project, apply everything in `supabase/migrations/` via the
+SQL editor or the Supabase CLI.
 
-**Supabase Dashboard → SQL Editor → New Query**
-
-Copy the SQL from `supabase/migrations/20260918192400_20250113_create_profiles_table.sql.sql` and run it.
-
-This creates:
+The migration creates:
 - `profiles` table with subscription columns
 - Row-level security policies
 - Auto-creation trigger for new users
@@ -76,17 +77,10 @@ Note: `VITE_SUPABASE_URL` is needed by the Netlify Function, and `VITE_SUPABASE_
 
 ### 5. Deploy to Netlify
 
-Push your code to Git (the netlify/functions folder is included):
-
-```bash
-git add .
-git commit -m "feat: add Paddle webhook and secure subscription flow"
-git push
-```
-
-Netlify will automatically:
-- Deploy the Netlify Function at `/.netlify/functions/paddle-webhook`
-- Apply environment variables to the function
+Merge to `main`. The Deploy workflow (`.github/workflows/deploy.yml`) deploys
+the site and everything in `netlify/functions/`, including the function at
+`/.netlify/functions/paddle-webhook`, and the function reads its environment
+variables from Netlify.
 
 ### 6. Update Paddle Webhook URL (if needed)
 
@@ -143,10 +137,10 @@ Once deployed to Netlify, test the full flow:
 3. **App.tsx** sees `?checkout=pro` param
 4. User completes auth
 5. **App.tsx** calls `handleAuthSuccess()` and sets `shouldOpenCheckout = true`
-6. **AccomplishmentApp** receives `shouldOpenCheckout` prop
-7. Component imports `openCheckout` and opens Paddle overlay with:
+6. **App.tsx** (once the user is signed in) imports `openCheckout` and opens Paddle overlay with:
    - `customer.email` = authenticated user's email
    - `passthrough` = `{ userId }` so webhook can reconcile
+   - `success_url` = `/checkout-success`
 
 ### Paddle Payment Completed
 
@@ -170,11 +164,12 @@ Once deployed to Netlify, test the full flow:
 3. Queries `profiles` table for current user
 4. If `subscription_plan = 'pro'`, shows success message
 5. User can click "Back to App"
-6. **AccomplishmentApp** now shows `Pro` badge in top-right
+
+The app UI does not yet show a Pro badge or gate any features on the plan; `profiles` is currently the only record of it.
 
 ## Production Checklist
 
-- [ ] Supabase migration applied (profiles table exists)
+- [ ] Supabase migrations applied (profiles table exists; the deploy workflow does this)
 - [ ] Netlify environment variables set:
   - [ ] `PADDLE_WEBHOOK_SECRET`
   - [ ] `SUPABASE_SERVICE_ROLE_KEY`
@@ -182,7 +177,6 @@ Once deployed to Netlify, test the full flow:
 - [ ] Paddle webhook URL points to Netlify function
 - [ ] Paddle webhook events include `transaction.completed` and optionally `transaction.cancelled`
 - [ ] Test payment completes successfully
-- [ ] User sees Pro badge after checkout
 - [ ] Profiles table has correct subscription status
 
 ## Troubleshooting
