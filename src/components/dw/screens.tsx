@@ -23,6 +23,7 @@ import {
   weekBars,
 } from '../../lib/winsData';
 import { catColorVar, categoryColor } from '../../lib/categories';
+import { ibexoftUrl, jawaidUrl } from '../../lib/links';
 import { Empty } from './screens2';
 
 /** Style carrying a chip's place in the filter row, for the staggered reveal. */
@@ -497,11 +498,11 @@ export function Timeline({ device }: { device: Device }) {
               {`That's all ${entries.length} wins. `}
               <br />
               Developed by{' '}
-              <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
+              <a href={jawaidUrl('timeline')} target="_blank" rel="noopener">
                 Jawaid
               </a>{' '}
               · Powered by{' '}
-              <a href="https://ibexoft.com" target="_blank" rel="noreferrer">
+              <a href={ibexoftUrl('/', 'credit', 'timeline')} target="_blank" rel="noopener">
                 Ibexoft
               </a>
             </div>

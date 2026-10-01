@@ -11,6 +11,7 @@ import { computeStreak } from '../../lib/winsData';
 import { MAX_CATEGORIES } from '../../lib/categories';
 import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl, jawaidUrl } from '../../lib/links';
 
 interface ToggleRowProps {
   icon: Parameters<typeof Icon>[0]['name'];
@@ -440,6 +441,22 @@ export function Profile({ device }: { device: Device }) {
           </div>
           <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
         </button>
+        <a
+          className="dw-prefrow"
+          href={ibexoftUrl(IBEXOFT_CONTACT_PATH, 'support', 'profile')}
+          target="_blank"
+          rel="noopener"
+        >
+          <div className="ico">
+            <Icon name="help" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Contact support</div>
+            <div className="s">Questions, problems or feedback</div>
+          </div>
+          <span className="dw-sr-only">(opens in a new tab)</span>
+          <Icon name="external" size={16} style={{ color: 'var(--faint)' }} />
+        </a>
       </div>
 
       {/* account */}
@@ -474,11 +491,11 @@ export function Profile({ device }: { device: Device }) {
         DailyWins · v{__APP_VERSION__}
         <br />
         Developed by{' '}
-        <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
+        <a href={jawaidUrl('profile')} target="_blank" rel="noopener">
           Jawaid
         </a>{' '}
         · Powered by{' '}
-        <a href="https://ibexoft.com" target="_blank" rel="noreferrer">
+        <a href={ibexoftUrl('/', 'credit', 'profile')} target="_blank" rel="noopener">
           Ibexoft
         </a>
       </div>

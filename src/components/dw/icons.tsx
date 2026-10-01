@@ -9,7 +9,8 @@ export type IconName =
   | 'edit' | 'trash' | 'x' | 'chevL' | 'chevR' | 'chevD' | 'gear' | 'mail' | 'lock'
   | 'eye' | 'sun' | 'moon' | 'device' | 'bell' | 'flame' | 'spark' | 'more' | 'filter'
   | 'clock' | 'logout' | 'chevUp' | 'arrowUp' | 'target' | 'heartHand' | 'book'
-  | 'activity' | 'briefcase' | 'chart' | 'sync' | 'download' | 'image' | 'flag' | 'cloudOff' | 'alert' | 'eyeOff';
+  | 'activity' | 'briefcase' | 'chart' | 'sync' | 'download' | 'image' | 'flag' | 'cloudOff' | 'alert' | 'eyeOff'
+  | 'help' | 'external';
 
 const PATHS: Record<string, string> = {
   home: 'M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5',
@@ -37,6 +38,8 @@ const PATHS: Record<string, string> = {
   spark: 'M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   filter: 'M3 5h18l-7 8v6l-4-2v-4L3 5Z',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2',
   logout: 'M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3M10 12h10M16 8l4 4-4 4',
   chevUp: 'M6 15l6-6 6 6',
