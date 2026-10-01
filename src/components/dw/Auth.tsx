@@ -242,6 +242,13 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
               </a>
               .
             </p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 8, lineHeight: 1.6 }}>
+              Need help?{' '}
+              <a href="https://ibexoft.com/contact/" target="_blank" rel="noopener noreferrer" className="dw-inline-link">
+                Contact support
+                <span className="dw-sr-only"> (opens in a new tab)</span>
+              </a>
+            </p>
           </div>
         </form>
       </div>

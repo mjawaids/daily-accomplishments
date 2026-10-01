@@ -32,6 +32,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 
 ### 🔐 Authentication & Data
 - **Email/password + Google** — Supabase Auth with email/password and **Continue with Google** (OAuth). Same-email accounts are linked automatically by Supabase.
+- **Support link** — The sign-in/sign-up screen links to the [Ibexoft contact page](https://ibexoft.com/contact/) (opens in a new tab) for anyone who can't get in.
 - **Google profile** — Uses your Google display name and avatar when signed in with Google.
 - **Row Level Security** — Every win is private to its owner, enforced at the database level.
 - **Real-time-ready** — Data is keyed to your user and synced through Supabase.
