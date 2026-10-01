@@ -10,7 +10,7 @@ export type IconName =
   | 'eye' | 'sun' | 'moon' | 'device' | 'bell' | 'flame' | 'spark' | 'more' | 'filter'
   | 'clock' | 'logout' | 'chevUp' | 'arrowUp' | 'target' | 'heartHand' | 'book'
   | 'activity' | 'briefcase' | 'chart' | 'sync' | 'download' | 'image' | 'flag' | 'cloudOff' | 'alert' | 'eyeOff'
-  | 'help' | 'external';
+  | 'help' | 'external' | 'share' | 'plusSquare';
 
 const PATHS: Record<string, string> = {
   home: 'M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5',
@@ -52,6 +52,8 @@ const PATHS: Record<string, string> = {
   chart: 'M5 21V8M12 21V3M19 21v-9',
   sync: 'M4 10a8 8 0 0 1 13-4l3 2M20 14a8 8 0 0 1-13 4l-3-2M17 4v4h-4M7 20v-4h4',
   download: 'M12 4v10M8 11l4 4 4-4M5 19h14',
+  share: 'M12 3v12M8 7l4-4 4 4M7 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1',
+  plusSquare: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM12 8v8M8 12h8',
   image: 'M4 4h16v16H4zM4 15l4-4 5 5M14 13l2-2 4 4',
   flag: 'M5 21V4M5 4c3-1.5 6 1.5 9 0v8c-3 1.5-6-1.5-9 0',
   cloudOff: 'M3 3l18 18M8.5 6.2A6 6 0 0 1 17.7 10H18a4 4 0 0 1 2.9 6.8M16 19H7a5 5 0 0 1-2.3-9.4',

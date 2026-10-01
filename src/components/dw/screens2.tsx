@@ -11,6 +11,7 @@ import { computeStreak } from '../../lib/winsData';
 import { MAX_CATEGORIES } from '../../lib/categories';
 import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
+import { useInstallAction } from './useInstallAction';
 import { IBEXOFT_CONTACT_PATH, ibexoftUrl, jawaidUrl } from '../../lib/links';
 
 interface ToggleRowProps {
@@ -102,6 +103,7 @@ export function Profile({ device }: { device: Device }) {
     openTour,
     loadError,
   } = useDW();
+  const install = useInstallAction();
   const [confirmClear, setConfirmClear] = useState(false);
   const atCategoryLimit = categories.length >= MAX_CATEGORIES;
   const [editing, setEditing] = useState(false);
@@ -241,6 +243,30 @@ export function Profile({ device }: { device: Device }) {
       </div>
 
       <div style={{ height: 18 }} />
+
+      {/* install: only while there is one to offer on this device (lib/install.ts) */}
+      {install.available && (
+        <>
+          <h2 className="dw-section-label">App</h2>
+          <div className="dw-prefcard" style={{ marginBottom: 18 }}>
+            <div className="dw-prefrow">
+              <div className="ico ico--accent">
+                <Icon name="download" size={18} />
+              </div>
+              <div className="lbl">
+                <div className="t">Install DailyWins</div>
+                <div className="s">
+                  {install.mode === 'mac-safari' ? 'Open it from your Dock, even offline' : 'Open it from your home screen, even offline'}
+                </div>
+              </div>
+              <button className="dw-btn sm" onClick={install.start}>
+                Install
+              </button>
+            </div>
+          </div>
+          {install.sheet}
+        </>
+      )}
 
       {/* appearance */}
       <h2 className="dw-section-label">Appearance</h2>

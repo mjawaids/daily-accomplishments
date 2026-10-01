@@ -6,6 +6,7 @@ import type { Device } from './useDevice';
 import { Icon, CatGlyph } from './icons';
 import { Avatar, DateHead, EntryCard, Kbd, LoadErrorBanner, QuickComposer } from './components';
 import { isTypingTarget } from './keys';
+import { useInstallAction } from './useInstallAction';
 import {
   computeStreak,
   dayKey,
@@ -270,6 +271,7 @@ export function Timeline({ device }: { device: Device }) {
     categorySheet,
     tourOpen,
   } = useDW();
+  const install = useInstallAction();
   const [query, setQuery] = useState('');
   const [pickedCats, setPickedCats] = useState<string[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -346,6 +348,12 @@ export function Timeline({ device }: { device: Device }) {
 
   const headRight = (
     <div className="dw-headact">
+      {/* desktop has the sidebar item instead */}
+      {device !== 'desktop' && install.available && (
+        <button className="dw-iconbtn dw-iconbtn--install" aria-label="Install app" title="Install app" onClick={install.start}>
+          <Icon name="download" size={19} />
+        </button>
+      )}
       {hasEntries && (
         <span className="dw-tipwrap">
           <button
@@ -395,6 +403,7 @@ export function Timeline({ device }: { device: Device }) {
         title="Your wins"
         right={headRight}
       />
+      {install.sheet}
 
       <FilterPanel
         open={open}

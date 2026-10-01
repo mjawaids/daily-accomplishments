@@ -16,10 +16,12 @@ import { InstallPrompt } from '../InstallPrompt';
 import { PushPrompt } from './PushPrompt';
 import { CategorySheet } from './CategorySheet';
 import { Onboarding } from './Onboarding';
+import { useInstallAction } from './useInstallAction';
 
 // ---- desktop sidebar ----
 function Sidebar() {
   const { screen, setScreen, entries, openAdd, prefs } = useDW();
+  const install = useInstallAction();
   const item = (id: 'timeline' | 'insights', icon: IconName, label: string) => (
     <button
       key={id}
@@ -49,6 +51,17 @@ function Sidebar() {
         {item('timeline', 'home', 'Timeline')}
         {item('insights', 'insights', 'Insights')}
       </div>
+      {/* only while there is an install to offer on this device (lib/install.ts) */}
+      {install.available && (
+        <button className="dw-navitem dw-navitem--install" onClick={install.start}>
+          <Icon name="download" size={20} />
+          <span className="lbl">
+            Install app
+            <span className="sub">Opens in its own window</span>
+          </span>
+        </button>
+      )}
+      {install.sheet}
       {/* user chip opens Profile (no separate Profile nav link) */}
       <button
         className={'dw-profilechip' + (screen === 'profile' ? ' active' : '')}

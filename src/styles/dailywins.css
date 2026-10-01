@@ -671,3 +671,26 @@ a.dw-prefrow{color:inherit;text-decoration:none}
 }
 .dw-spinner{width:32px;height:32px;border:4px solid var(--line-2);border-top-color:var(--accent);border-radius:50%;animation:dw-spin .8s linear infinite}
 @keyframes dw-spin{to{transform:rotate(360deg)}}
+
+/* ============================================================ install app (src/lib/install.ts) */
+/* sidebar item: sits just above the profile chip, which it takes the auto margin from */
+.dw-navitem--install{margin-top:auto;align-items:flex-start}
+.dw-navitem--install svg{margin-top:1px;flex:none}
+.dw-navitem--install .sub{display:block}
+.dw-navitem--install + .dw-profilechip{margin-top:10px}
+.dw-iconbtn--install{color:var(--accent-text)}
+.dw-prefrow .ico--accent{background:var(--accent-soft);color:var(--accent-text)}
+.dw-getapp{display:flex;justify-content:center;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.dw-getapp .dw-btn{white-space:normal;text-align:center}
+/* Add to Home Screen / Add to Dock steps sheet */
+.dw-steps-intro{font-size:14px;color:var(--ink-2);margin:-8px 2px 6px}
+.dw-steps{list-style:none}
+.dw-step{display:flex;align-items:flex-start;gap:13px;padding:14px 2px;border-bottom:1px solid var(--line)}
+.dw-step:last-child{border-bottom:none}
+.dw-step .num{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent-soft);color:var(--accent-text);font-weight:700;font-size:13px}
+.dw-step .lbl{flex:1;min-width:0}
+.dw-step .t{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-weight:600;font-size:14.5px}
+.dw-step .s{font-size:13px;color:var(--muted);margin-top:2px}
+.dw-step .glyph{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--surface-2);color:var(--ink-2)}
+.dw-steps-note{font-size:12.5px;color:var(--muted);text-align:center;margin-top:12px}
