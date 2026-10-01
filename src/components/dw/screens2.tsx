@@ -11,6 +11,7 @@ import { computeStreak } from '../../lib/winsData';
 import { MAX_CATEGORIES } from '../../lib/categories';
 import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../../lib/links';
 
 interface ToggleRowProps {
   icon: Parameters<typeof Icon>[0]['name'];
@@ -440,7 +441,12 @@ export function Profile({ device }: { device: Device }) {
           </div>
           <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
         </button>
-        <a className="dw-prefrow" href="https://ibexoft.com/contact/" target="_blank" rel="noopener noreferrer">
+        <a
+          className="dw-prefrow"
+          href={ibexoftUrl(IBEXOFT_CONTACT_PATH, 'support', 'profile')}
+          target="_blank"
+          rel="noopener"
+        >
           <div className="ico">
             <Icon name="help" size={18} />
           </div>
@@ -489,7 +495,7 @@ export function Profile({ device }: { device: Device }) {
           Jawaid
         </a>{' '}
         · Powered by{' '}
-        <a href="https://ibexoft.com" target="_blank" rel="noreferrer">
+        <a href={ibexoftUrl('/', 'credit', 'profile')} target="_blank" rel="noopener">
           Ibexoft
         </a>
       </div>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Calendar, ExternalLink } from 'lucide-react';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../lib/links';
 
 export function PageFooter() {
   return (
@@ -25,9 +26,9 @@ export function PageFooter() {
             <Link to="/pricing" className="text-blue-400 hover:text-blue-300 transition-colors">Pricing</Link>
             <span className="text-slate-500">•</span>
             <a
-              href="https://ibexoft.com/contact/"
+              href={ibexoftUrl(IBEXOFT_CONTACT_PATH, 'support', 'page-footer')}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
               className="text-blue-400 hover:text-blue-300 transition-colors"
             >
               Contact
@@ -49,9 +50,9 @@ export function PageFooter() {
             </div>
             
             <a
-              href="https://ibexoft.com"
+              href={ibexoftUrl('/', 'credit', 'page-footer')}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
               className="inline-flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-xs font-medium hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <span>Powered by Ibexoft</span>

@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { trackAuthEvent } from '../../lib/analytics';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../../lib/links';
 import { Icon, Logo } from './icons';
 import { DEFAULT_CATEGORIES } from '../../lib/categories';
 import { useDevice, useResolvedTheme, getStoredTheme } from './useDevice';
@@ -244,7 +245,12 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
             </p>
             <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 8, lineHeight: 1.6 }}>
               Need help?{' '}
-              <a href="https://ibexoft.com/contact/" target="_blank" rel="noopener noreferrer" className="dw-inline-link">
+              <a
+                href={ibexoftUrl(IBEXOFT_CONTACT_PATH, 'support', isSignup ? 'auth-signup' : 'auth-signin')}
+                target="_blank"
+                rel="noopener"
+                className="dw-inline-link"
+              >
                 Contact support
                 <span className="dw-sr-only"> (opens in a new tab)</span>
               </a>
