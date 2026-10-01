@@ -440,6 +440,17 @@ export function Profile({ device }: { device: Device }) {
           </div>
           <Icon name="chevR" size={16} style={{ color: 'var(--faint)' }} />
         </button>
+        <a className="dw-prefrow" href="https://ibexoft.com/contact/" target="_blank" rel="noopener noreferrer">
+          <div className="ico">
+            <Icon name="help" size={18} />
+          </div>
+          <div className="lbl">
+            <div className="t">Contact support</div>
+            <div className="s">Questions, problems or feedback</div>
+          </div>
+          <span className="dw-sr-only">(opens in a new tab)</span>
+          <Icon name="external" size={16} style={{ color: 'var(--faint)' }} />
+        </a>
       </div>
 
       {/* account */}

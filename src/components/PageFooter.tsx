@@ -23,6 +23,16 @@ export function PageFooter() {
             <Link to="/terms" className="text-blue-400 hover:text-blue-300 transition-colors">Terms & Conditions</Link>
             <span className="text-slate-500">•</span>
             <Link to="/pricing" className="text-blue-400 hover:text-blue-300 transition-colors">Pricing</Link>
+            <span className="text-slate-500">•</span>
+            <a
+              href="https://ibexoft.com/contact/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Contact
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-8">
