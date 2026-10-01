@@ -497,14 +497,19 @@ export function Timeline({ device }: { device: Device }) {
             <div className="dw-credit">
               {`That's all ${entries.length} wins. `}
               <br />
-              Developed by{' '}
-              <a href={jawaidUrl('timeline')} target="_blank" rel="noopener">
-                Jawaid
-              </a>{' '}
-              · Powered by{' '}
-              <a href={ibexoftUrl('/', 'credit', 'timeline')} target="_blank" rel="noopener">
-                Ibexoft
-              </a>
+              <span className="dw-credit-part">
+                Developed<span aria-hidden="true"> with ❤️</span> by{' '}
+                <a href={jawaidUrl('timeline')} target="_blank" rel="noopener">
+                  Jawaid
+                </a>
+              </span>{' '}
+              ·{' '}
+              <span className="dw-credit-part">
+                Powered<span aria-hidden="true"> 🚀</span> by{' '}
+                <a href={ibexoftUrl('/', 'credit', 'timeline')} target="_blank" rel="noopener">
+                  Ibexoft
+                </a>
+              </span>
             </div>
           )}
         </div>

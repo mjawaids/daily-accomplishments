@@ -490,14 +490,19 @@ export function Profile({ device }: { device: Device }) {
       <div className="dw-credit">
         DailyWins · v{__APP_VERSION__}
         <br />
-        Developed by{' '}
-        <a href={jawaidUrl('profile')} target="_blank" rel="noopener">
-          Jawaid
-        </a>{' '}
-        · Powered by{' '}
-        <a href={ibexoftUrl('/', 'credit', 'profile')} target="_blank" rel="noopener">
-          Ibexoft
-        </a>
+        <span className="dw-credit-part">
+          Developed<span aria-hidden="true"> with ❤️</span> by{' '}
+          <a href={jawaidUrl('profile')} target="_blank" rel="noopener">
+            Jawaid
+          </a>
+        </span>{' '}
+        ·{' '}
+        <span className="dw-credit-part">
+          Powered<span aria-hidden="true"> 🚀</span> by{' '}
+          <a href={ibexoftUrl('/', 'credit', 'profile')} target="_blank" rel="noopener">
+            Ibexoft
+          </a>
+        </span>
       </div>
 
       {confirmClear && (

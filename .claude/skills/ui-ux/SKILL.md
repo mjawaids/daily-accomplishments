@@ -186,7 +186,10 @@ drift to the user rather than silently picking one.
 
 **Copy**
 - Sentence case, "you/your", short and concrete, warm without hype, no emoji.
-  Buttons say what happens ("Log a win", "Save"). Destructive actions state the
+  One deliberate exception: the credit line on Timeline and Profile reads
+  "Developed with ❤️ by Jawaid · Powered 🚀 by Ibexoft". Keep it, with the
+  decorative parts in `aria-hidden` spans so screen readers hear "Developed by
+  Jawaid · Powered by Ibexoft". Buttons say what happens ("Log a win", "Save"). Destructive actions state the
   consequence ("This can't be undone.") and ask before deleting more than one
   thing. The app never says "we" or "I".
 
