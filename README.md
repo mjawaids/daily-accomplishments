@@ -354,7 +354,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## 🙏 Credits
 
-Developed with ❤️ by [Jawaid](https://jawaid.dev) · Powered by 🚀 [Ibexoft](https://ibexoft.com)
+Developed with ❤️ by [Jawaid](https://jawaid.dev) · Powered 🚀 by [Ibexoft](https://ibexoft.com)
 Backend by [Supabase](https://supabase.com) · Hosted on [Netlify](https://netlify.com)
 
 ---
