@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Calendar, ExternalLink } from 'lucide-react';
-import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../lib/links';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl, jawaidUrl } from '../lib/links';
 
 export function PageFooter() {
   return (
@@ -40,9 +40,9 @@ export function PageFooter() {
             <div className="text-slate-300 text-sm">
               Developed with ❤️ by{' '}
               <a
-                href="https://jawaid.dev"
+                href={jawaidUrl('page-footer')}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noopener"
                 className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 Jawaid

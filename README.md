@@ -32,7 +32,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 
 ### 🔐 Authentication & Data
 - **Email/password + Google** — Supabase Auth with email/password and **Continue with Google** (OAuth). Same-email accounts are linked automatically by Supabase.
-- **Support link** — The sign-in/sign-up screen, the Profile screen's Help section (**Contact support**) and the footer of the pricing and policy pages link to the [Ibexoft contact page](https://ibexoft.com/contact/), opening in a new tab. Every link to ibexoft.com (support and the "Powered by Ibexoft" credit) is built by `src/lib/links.ts` with `utm_source=dailywins`, `utm_medium=referral`, `utm_campaign=support|credit` and `utm_content` set to where the link sits (`auth-signin`, `auth-signup`, `profile`, `timeline`, `page-footer`), and keeps the referrer (`rel="noopener"`, no `noreferrer`) so ibexoft.com analytics can attribute the visit.
+- **Support link** — The sign-in/sign-up screen, the Profile screen's Help section (**Contact support**) and the footer of the pricing and policy pages link to the [Ibexoft contact page](https://ibexoft.com/contact/), opening in a new tab. Every link to our own sites — ibexoft.com (support and the "Powered by Ibexoft" credit) and jawaid.dev (the "Developed by Jawaid" credit) — is built by `src/lib/links.ts` with `utm_source=dailywins`, `utm_medium=referral`, `utm_campaign=support|credit` and `utm_content` set to where the link sits (`auth-signin`, `auth-signup`, `profile`, `timeline`, `page-footer`), and keeps the referrer (`rel="noopener"`, no `noreferrer`) so those sites' analytics can attribute the visit.
 - **Google profile** — Uses your Google display name and avatar when signed in with Google.
 - **Row Level Security** — Every win is private to its owner, enforced at the database level.
 - **Real-time-ready** — Data is keyed to your user and synced through Supabase.
@@ -257,7 +257,7 @@ daily-accomplishments/
 │   │   ├── onesignal.ts           # OneSignal web push wrapper
 │   │   ├── onboarding.ts          # Intro "seen" flag, first-sign-in detection, ?tour=1
 │   │   ├── analytics.ts           # Google Analytics helpers
-│   │   ├── links.ts               # ibexoft.com links with UTM tags
+│   │   ├── links.ts               # ibexoft.com / jawaid.dev links with UTM tags
 │   │   └── paddle.ts              # Paddle checkout (optional)
 │   ├── pages/                     # Pricing, checkout success, policy routes
 │   ├── styles/dailywins.css       # Design tokens + component styles

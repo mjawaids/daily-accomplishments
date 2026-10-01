@@ -11,7 +11,7 @@ import { computeStreak } from '../../lib/winsData';
 import { MAX_CATEGORIES } from '../../lib/categories';
 import { browserTimezone, formatReminderTime, roundToQuarterHour, toInputTime } from '../../lib/userSettings';
 import { isIosNeedsInstall } from '../../lib/onesignal';
-import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../../lib/links';
+import { IBEXOFT_CONTACT_PATH, ibexoftUrl, jawaidUrl } from '../../lib/links';
 
 interface ToggleRowProps {
   icon: Parameters<typeof Icon>[0]['name'];
@@ -491,7 +491,7 @@ export function Profile({ device }: { device: Device }) {
         DailyWins · v{__APP_VERSION__}
         <br />
         Developed by{' '}
-        <a href="https://jawaid.dev" target="_blank" rel="noreferrer">
+        <a href={jawaidUrl('profile')} target="_blank" rel="noopener">
           Jawaid
         </a>{' '}
         · Powered by{' '}
