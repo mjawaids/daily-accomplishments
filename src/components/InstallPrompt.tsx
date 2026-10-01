@@ -1,82 +1,51 @@
 import { useState, useEffect } from 'react';
 import { trackPWAEvent } from '../lib/analytics';
+import { promptInstall, useInstallMode } from '../lib/install';
 import { Icon } from './dw/icons';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
+/** The one-time nudge. Only where the browser can install directly (Chromium);
+    iOS and Safari users get the steps from the Install app entry points instead
+    (src/components/dw/InstallSteps.tsx). */
 export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const mode = useInstallMode();
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
-    const checkInstalled = () => {
-      const nav = window.navigator as Navigator & { standalone?: boolean };
-      if (window.matchMedia('(display-mode: standalone)').matches || nav.standalone === true) {
-        setIsInstalled(true);
-      }
-    };
-
-    checkInstalled();
-
-    // Listen for the beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // Show our custom install prompt after a delay
-      setTimeout(() => {
-        setShowPrompt(true);
-        trackPWAEvent('install_prompt_shown');
-      }, 3000);
-    };
-
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
+    if (mode !== 'prompt') {
       setShowPrompt(false);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    try {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-        trackPWAEvent('install_accepted');
-      } else {
-        trackPWAEvent('install_dismissed');
-      }
-      setDeferredPrompt(null);
-      setShowPrompt(false);
-    } catch (error) {
-      console.error('Error during installation:', error);
+      return;
     }
+    // Show our custom install prompt after a delay
+    const t = setTimeout(() => {
+      setShowPrompt(true);
+      trackPWAEvent('install_prompt_shown');
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [mode]);
+
+  const handleInstallClick = () => {
+    setShowPrompt(false);
+    void promptInstall();
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
     trackPWAEvent('install_dismissed');
     // Don't show again for this session
-    sessionStorage.setItem('installPromptDismissed', 'true');
+    try {
+      sessionStorage.setItem('installPromptDismissed', 'true');
+    } catch {
+      /* storage unavailable: it just shows again next time */
+    }
   };
 
-  // Don't show if already installed, no prompt available, or dismissed this session
-  if (isInstalled || !deferredPrompt || !showPrompt || sessionStorage.getItem('installPromptDismissed')) {
+  let dismissed = false;
+  try {
+    dismissed = !!sessionStorage.getItem('installPromptDismissed');
+  } catch {
+    /* storage unavailable */
+  }
+  if (mode !== 'prompt' || !showPrompt || dismissed) {
     return null;
   }
 

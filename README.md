@@ -24,7 +24,7 @@ A calm, celebratory Progressive Web App for logging your daily wins — part ach
 - **Design system of record** — The tokens and brand rules also live in a Claude Design system ([DailyWins](https://claude.ai/artifact/XJuytAvtF6nVVD9YRsNENg), private to the owner). New screens are mocked up there before they're built. UI work follows the `ui-ux` project skill (`.claude/skills/ui-ux/SKILL.md`) and is checked with `npm run ui:check`.
 
 ### 📱 Progressive Web App
-- **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop.
+- **Installable** — Full web manifest + multi-resolution favicons/icons; installs as a native-like app on mobile and desktop. An **Install app** button appears on the sign-in screen, in the desktop sidebar, in the mobile Timeline header and in Profile whenever this device can install: in Chrome, Edge and Samsung Internet it opens the browser's install dialog; on iPhone/iPad and in Safari 17+ on macOS (which have no install API) it shows the Add to Home Screen / Add to Dock steps. It hides once the app is installed, and in browsers with no install path (Firefox).
 - **Offline-first** — Works fully offline using IndexedDB; changes apply optimistically. A small status pill says when you're offline and how many changes are waiting to sync, with a Sync now button once you're back.
 - **Background sync** — Pending offline changes sync automatically when you reconnect.
 - **Update prompt** — When a new version is deployed, a banner offers a Reload button (see [Updates and caching](#7-updates-and-caching)).
@@ -209,7 +209,7 @@ npm run ui:check # screenshot screens (phone/desktop × light/dark) to ui-shots/
 npm run typecheck:ui-check    # typecheck the ui:check fixtures against the database types
 ```
 
-`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet, search and filters, the category editor, the reminder and install prompts, the update banner, the intro tour, and logging a win). Screens that scroll also get a `-full.png` covering the whole scroll area. Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--accent=forest` (or `all`) renders another brand accent, `--no-axe` skips the scan.
+`ui:check` starts its own Vite dev server and uses Playwright's Chromium (run `npx playwright install chromium` once locally). It covers the signed-out screens (auth, with and without the install button, pricing, policies) and the signed-in ones (timeline, insights, profile, the add-win sheet, search and filters, the category editor, the reminder and install prompts, the Add to Home Screen steps, the update banner, the intro tour, and logging a win). Screens that scroll also get a `-full.png` covering the whole scroll area. Signed-in screens run against a fake Supabase inside the browser, fed by fixture scenarios in `scripts/ui-check/scenarios.mjs` (`default`, `empty`, `busy`, `error`, `offline`), so no account or secret is needed and the check never contacts a real Supabase project. It exits non-zero on serious or critical accessibility violations or on a Supabase call the fake can't answer. Options: `--only=timeline,add` limits screens, `--scenario=empty,busy` (or `all`) picks data, `--accent=forest` (or `all`) renders another brand accent, `--no-axe` skips the scan.
 
 ## 📁 Project Structure
 
@@ -238,12 +238,14 @@ daily-accomplishments/
 │   │   │   ├── screens2.tsx       # Profile + Empty
 │   │   │   ├── CategorySheet.tsx  # Add / edit / delete categories
 │   │   │   ├── PushPrompt.tsx     # One-time push reminder opt-in
+│   │   │   ├── InstallSteps.tsx   # Add to Home Screen / Add to Dock steps sheet
+│   │   │   ├── useInstallAction.tsx # Shared "Install app" button behavior
 │   │   │   ├── Auth.tsx           # Email/password + Google auth
 │   │   │   ├── Onboarding.tsx     # 3-step intro: first run after signup, replayable overlay
 │   │   │   ├── icons.tsx          # Icon set + brand mark + category glyphs
 │   │   │   ├── keys.ts            # Keyboard-shortcut helpers
 │   │   │   └── useDevice.ts       # Responsive + theme hooks
-│   │   ├── InstallPrompt.tsx      # PWA install prompt
+│   │   ├── InstallPrompt.tsx      # One-time PWA install nudge (Chromium)
 │   │   ├── UpdateBanner.tsx       # "A new version is ready" reload banner
 │   │   ├── OfflineIndicator.tsx   # Offline / pending-sync status pill (mounted in AppShell)
 │   │   └── PageHeader / PageFooter / ThemeToggle.tsx  # Marketing/policy pages
@@ -255,6 +257,7 @@ daily-accomplishments/
 │   │   ├── categories.ts          # User categories: colors, icons, CRUD, defaults
 │   │   ├── userSettings.ts        # Notification preferences + timezone
 │   │   ├── onesignal.ts           # OneSignal web push wrapper
+│   │   ├── install.ts             # PWA install mode per browser + beforeinstallprompt capture
 │   │   ├── onboarding.ts          # Intro "seen" flag, first-sign-in detection, ?tour=1
 │   │   ├── analytics.ts           # Google Analytics helpers
 │   │   ├── links.ts               # ibexoft.com / jawaid.dev links with UTM tags

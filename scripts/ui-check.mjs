@@ -61,6 +61,14 @@ process.env.VITE_SUPABASE_URL = FAKE_URL;
 process.env.VITE_SUPABASE_ANON_KEY = FAKE_ANON_KEY;
 
 const SIGNED_IN_READY = '.dw-app [title="Profile"]';
+/** A stand-in for Chromium's beforeinstallprompt, run in the page. */
+const fireInstallPrompt = () => {
+  const e = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+    prompt: async () => {},
+    userChoice: Promise.resolve({ outcome: 'dismissed' }),
+  });
+  window.dispatchEvent(e);
+};
 const signedOut = [
   { name: 'signin', path: '/?auth=signin', ready: 'form' },
   { name: 'signup', path: '/?auth=signup', ready: 'form' },
@@ -68,6 +76,17 @@ const signedOut = [
   { name: 'privacy', path: '/privacy' },
   { name: 'terms', path: '/terms' },
   { name: 'refund', path: '/refund' },
+  {
+    // The sign-in screen's install button, which shows once the browser offers
+    // an install (a stand-in beforeinstallprompt event).
+    name: 'getapp',
+    path: '/?auth=signin',
+    ready: 'form',
+    go: async (p) => {
+      await p.evaluate(fireInstallPrompt);
+      await p.locator('.dw-getapp .dw-btn').waitFor({ timeout: 8000 });
+    },
+  },
 ];
 const signedIn = [
   { name: 'timeline', path: '/', ready: SIGNED_IN_READY },
@@ -138,14 +157,30 @@ const signedIn = [
     path: '/',
     ready: SIGNED_IN_READY,
     go: async (p) => {
-      await p.evaluate(() => {
-        const e = Object.assign(new Event('beforeinstallprompt'), {
-          prompt: async () => {},
-          userChoice: Promise.resolve({ outcome: 'dismissed' }),
-        });
-        window.dispatchEvent(e);
-      });
+      await p.evaluate(fireInstallPrompt);
       await p.getByText('Install DailyWins').waitFor({ timeout: 8000 });
+    },
+  },
+  {
+    // The Add to Home Screen steps, opened from Profile's install row as an
+    // iPhone would (no install API there).
+    name: 'install-steps',
+    path: '/',
+    ready: SIGNED_IN_READY,
+    setup: (p) =>
+      p.addInitScript(() => {
+        const props = {
+          userAgent:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+          platform: 'iPhone',
+          maxTouchPoints: 5,
+        };
+        for (const [k, v] of Object.entries(props)) Object.defineProperty(Navigator.prototype, k, { get: () => v });
+      }),
+    go: async (p) => {
+      await p.locator('[title="Profile"]').first().click();
+      await p.locator('.dw-prefrow .dw-btn').filter({ hasText: 'Install' }).click();
+      await p.waitForSelector('.dw-sheet');
     },
   },
   {

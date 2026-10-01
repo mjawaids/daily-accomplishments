@@ -66,7 +66,7 @@ export const trackAuthEvent = (action: 'signup' | 'signin' | 'signout') => {
 };
 
 // Track PWA events
-export const trackPWAEvent = (action: 'install_prompt_shown' | 'install_accepted' | 'install_dismissed') => {
+export const trackPWAEvent = (action: 'install_prompt_shown' | 'install_accepted' | 'install_dismissed' | 'install_steps_shown') => {
   trackEvent(action, 'pwa');
 };
 

@@ -8,6 +8,7 @@ import { IBEXOFT_CONTACT_PATH, ibexoftUrl } from '../../lib/links';
 import { Icon, Logo } from './icons';
 import { DEFAULT_CATEGORIES } from '../../lib/categories';
 import { useDevice, useResolvedTheme, getStoredTheme } from './useDevice';
+import { useInstallAction } from './useInstallAction';
 
 type Mode = 'signin' | 'signup';
 
@@ -31,6 +32,7 @@ function GoogleG() {
 
 export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProps) {
   const device = useDevice();
+  const install = useInstallAction();
   const theme = useResolvedTheme(getStoredTheme());
   const [mode, setMode] = useState<Mode>(initialMode);
   const isSignup = mode === 'signup';
@@ -255,9 +257,20 @@ export function Auth({ onAuthSuccess, onBack, initialMode = 'signin' }: AuthProp
                 <span className="dw-sr-only"> (opens in a new tab)</span>
               </a>
             </p>
+            {install.available && (
+              <div className="dw-getapp">
+                <button type="button" className="dw-btn ghost sm" onClick={install.start}>
+                  <Icon name="download" size={16} sw={2.2} />
+                  {install.mode === 'mac-safari' || (install.mode === 'prompt' && device === 'desktop')
+                    ? 'Install the app on this computer'
+                    : 'Add DailyWins to your home screen'}
+                </button>
+              </div>
+            )}
           </div>
         </form>
       </div>
+      {install.sheet}
     </div>
   );
 }

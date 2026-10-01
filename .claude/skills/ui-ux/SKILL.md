@@ -73,11 +73,14 @@ drift to the user rather than silently picking one.
 
 ### About the check
 
-- Screens: `signin`, `signup`, `pricing`, `privacy`, `terms`, `refund`
-  (signed out), and `timeline`, `insights`, `profile`, `add` (the add-win
-  sheet), `search` (search and filters open, one category picked),
-  `category` (the category editor sheet), `push` (the evening-reminder
-  prompt), `install` (the install prompt), `update` (the new-version banner),
+- Screens: `signin`, `signup`, `pricing`, `privacy`, `terms`, `refund`,
+  `getapp` (sign-in with its install button showing) (signed out), and
+  `timeline`, `insights`, `profile`, `add` (the add-win sheet), `search`
+  (search and filters open, one category picked), `category` (the category
+  editor sheet), `push` (the evening-reminder prompt), `install` (the install
+  prompt, plus the Install app sidebar item and mobile header button),
+  `install-steps` (the Add to Home Screen steps, as an iPhone sees them from
+  Profile), `update` (the new-version banner),
   `tour` and `log` (logs a win from the composer and shows the result; in the
   `error` and `offline` scenarios that is a save that didn't reach the server)
   (signed in). A screen whose state doesn't exist in a scenario (no wins to
