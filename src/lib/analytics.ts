@@ -21,10 +21,15 @@ export const initGA = () => {
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`;
   document.head.appendChild(script);
 
-  // Initialize dataLayer and gtag
+  // Initialize dataLayer and gtag.
+  // This must push the `arguments` object, not a rest-parameter array: gtag.js
+  // only runs a dataLayer entry as a gtag command ('js', 'config', 'event')
+  // when it is an Arguments object. A plain array is read as a different kind
+  // of command and silently dropped, so GA receives nothing at all.
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer.push(args);
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
   };
 
   window.gtag('js', new Date());
